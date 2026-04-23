@@ -34,10 +34,7 @@
   }
   .brand { font-weight: 700; font-size: 15px; letter-spacing: .02em; }
   .brand .tag { color: var(--muted); font-weight: 400; margin-left: 6px; font-size: 12px; }
-  .topbar .author { margin-left: auto; font-size: 12px; color: var(--ink-2); }
-  .topbar .author code { background: var(--bg); border: 1px solid var(--border);
-    color: var(--accent); padding: 1px 6px; border-radius: 3px; font-size: 11.5px; }
-  .topbar .status { margin-left: 16px; font-size: 12px; color: var(--muted); }
+  .topbar .status { margin-left: auto; font-size: 12px; color: var(--muted); }
   .status.ok { color: var(--green); }
   .status.err { color: var(--red); }
   .dot { display:inline-block; width:6px; height:6px; border-radius: 50%;
@@ -84,8 +81,8 @@
     transform: translateX(-50%);
     border: 5px solid transparent; border-top-color: var(--border);
   }
-  .help:hover .tip, .help:focus-visible .tip { opacity: 1; }
-  /* On small cards near the left edge, nudge the tip so it doesn't clip. */
+  .help:hover .tip, .help:focus-visible .tip, .help.open .tip { opacity: 1; pointer-events: auto; }
+  /* Default: center tip above the icon. For edge cards, nudge to avoid clipping. */
   .stat:first-child .help .tip { left: 0; transform: none; }
   .stat:first-child .help .tip::after { left: 10px; transform: none; }
   .stat:last-child  .help .tip { left: auto; right: 0; transform: none; }
@@ -185,10 +182,45 @@
     padding: 1px 6px; border-radius: 3px; color: var(--ink-2); }
 
   @media (max-width: 760px) {
-    .stats { grid-template-columns: repeat(2, 1fr); }
+    .wrap { padding: 14px; }
+    h1 { font-size: 18px; }
+    .subtitle { font-size: 11.5px; }
+
+    .stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .stat { padding: 10px 12px; }
+    .stat .value { font-size: 18px; }
+
     .chart-wrap { height: 360px; }
-    .range-tabs { margin-left: 0; }
+    .card { padding: 12px; }
     .card-head { flex-wrap: wrap; }
+    .card-head h2 { font-size: 13px; }
+
+    .range-tabs { margin-left: 0; }
+    .range-tabs button { padding: 5px 10px; min-width: 36px; font-size: 11.5px; }
+
+    /* Bigger tap target + adjust tooltip width on phones */
+    .help { width: 18px; height: 18px; font-size: 11px; }
+    .help .tip {
+      width: min(260px, calc(100vw - 32px));
+      font-size: 11.5px; padding: 8px 10px;
+    }
+    /* 2-col stats: right column pins its tip right, left column pins left. */
+    .stats .stat:nth-child(2n) .help .tip { left: auto; right: 0; transform: none; }
+    .stats .stat:nth-child(2n) .help .tip::after { left: auto; right: 10px; transform: none; }
+    .stats .stat:nth-child(2n+1) .help .tip { left: 0; transform: none; }
+    .stats .stat:nth-child(2n+1) .help .tip::after { left: 10px; transform: none; }
+
+    .legend { font-size: 11px; gap: 10px; }
+    .brush-canvas-wrap { height: 40px; }
+    thead th, tbody td { padding: 7px 10px; font-size: 12px; }
+    thead th { font-size: 11px; }
+
+    .topbar { height: 44px; padding: 0 14px; }
+    .brand { font-size: 14px; }
+    .brand .tag { display: none; }
+  }
+  @media (max-width: 420px) {
+    .range-tabs button { padding: 5px 8px; min-width: 32px; }
   }
 </style>
 </head>
@@ -196,7 +228,6 @@
 
 <div class="topbar">
   <div class="brand">Ahr999 Monitor <span class="tag">· 2026 新参数</span></div>
-  <div class="author">比特币航海家出品 · 微信号 <code>bing_tang_cheng</code></div>
   <div class="status" id="status"><span class="dot"></span>初始化…</div>
 </div>
 
@@ -843,6 +874,25 @@ window.addEventListener("resize", () => {
   drawBrushCanvas();
   updateBrushUI();
 });
+
+// Help tooltips: click toggles on touch devices; tap outside closes.
+document.querySelectorAll(".help").forEach(h => {
+  h.addEventListener("click", (e) => {
+    e.stopPropagation();
+    document.querySelectorAll(".help.open").forEach(o => { if (o !== h) o.classList.remove("open"); });
+    h.classList.toggle("open");
+  });
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".help")) {
+    document.querySelectorAll(".help.open").forEach(o => o.classList.remove("open"));
+  }
+});
+document.addEventListener("touchstart", (e) => {
+  if (!e.target.closest(".help")) {
+    document.querySelectorAll(".help.open").forEach(o => o.classList.remove("open"));
+  }
+}, { passive: true });
 
 bootstrap().then(() => setInterval(refreshTicker, REFRESH_MS));
 </script>
