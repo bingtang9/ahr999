@@ -232,9 +232,9 @@
       <button data-r="1M">1M</button>
       <button data-r="3M">3M</button>
       <button data-r="6M">6M</button>
-      <button data-r="1Y" class="active">1Y</button>
+      <button data-r="1Y">1Y</button>
       <button data-r="3Y">3Y</button>
-      <button data-r="ALL">全部</button>
+      <button data-r="ALL" class="active">全部</button>
     </div>
   </div>
 
@@ -723,8 +723,8 @@ async function bootstrap() {
     setStatus("拉取历史 K 线…");
     bars = await fetchKlines();
     fullSeries = computeSeries(bars);
-    // Default: last 1Y.
-    setBrushByDays(RANGE_DAYS["1Y"]);
+    // Default: entire history.
+    setBrushByDays(RANGE_DAYS["ALL"]);
     drawBrushCanvas();
     attachBrushDrag();
     renderTable(fullSeries);
