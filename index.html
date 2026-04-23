@@ -85,6 +85,39 @@
 
   .chart-wrap { height: 480px; }
 
+  /* Brush / range slider */
+  .brush { margin-top: 14px; user-select: none; }
+  .brush-labels { display:flex; justify-content: space-between;
+    font-size: 11px; color: var(--muted); margin-bottom: 4px;
+    font-variant-numeric: tabular-nums; }
+  .brush-canvas-wrap {
+    position: relative; height: 52px;
+    background: var(--bg-2); border: 1px solid var(--border); border-radius: 6px;
+    overflow: hidden;
+  }
+  #brushCanvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .brush-overlay { position: absolute; inset: 0; }
+  .brush-mask { position: absolute; top: 0; bottom: 0;
+    background: rgba(11, 14, 19, 0.72); pointer-events: none; }
+  .brush-window { position: absolute; top: 0; bottom: 0;
+    border-left: 2px solid var(--accent);
+    border-right: 2px solid var(--accent);
+    background: rgba(96, 165, 250, 0.05);
+    cursor: grab;
+  }
+  .brush-window:active { cursor: grabbing; }
+  .brush-handle { position: absolute; top: 0; bottom: 0; width: 10px;
+    background: var(--accent); opacity: 0.9;
+    display: flex; align-items: center; justify-content: center;
+    cursor: ew-resize;
+  }
+  .brush-handle::before {
+    content: ""; display: block; width: 2px; height: 18px;
+    background: rgba(11, 14, 19, 0.6); border-radius: 1px;
+  }
+  .brush-handle-l { left: -6px; border-radius: 3px 0 0 3px; }
+  .brush-handle-r { right: -6px; border-radius: 0 3px 3px 0; }
+
   .legend { display:flex; gap:14px; flex-wrap:wrap; color: var(--ink-2);
     font-size: 12px; margin-left: auto; align-items: center; }
   .swatch { display:inline-block; width:10px; height:10px; border-radius: 2px;
@@ -176,6 +209,25 @@
       </div>
     </div>
     <div class="chart-wrap"><canvas id="chart"></canvas></div>
+
+    <div class="brush" id="brush">
+      <div class="brush-labels">
+        <span id="brush-lo">—</span>
+        <span id="brush-hi">—</span>
+      </div>
+      <div class="brush-canvas-wrap">
+        <canvas id="brushCanvas"></canvas>
+        <div class="brush-overlay" id="brushOverlay">
+          <div class="brush-mask brush-mask-l" id="brushMaskL"></div>
+          <div class="brush-mask brush-mask-r" id="brushMaskR"></div>
+          <div class="brush-window" id="brushWindow">
+            <div class="brush-handle brush-handle-l" data-handle="l"></div>
+            <div class="brush-handle brush-handle-r" data-handle="r"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="range-tabs" id="ranges">
       <button data-r="1M">1M</button>
       <button data-r="3M">3M</button>
@@ -248,18 +300,30 @@ function zoneOf(v) {
 }
 
 async function fetchKlines() {
-  // Prefer the static JSON baked by GitHub Actions (fast, cache-friendly,
-  // works in regions that can't reach api.binance.com). Fall back to the
-  // Binance paginated API when running locally or if the JSON is missing.
+  // Prefer the static JSON baked by the updater. Merge two files:
+  //   data/btc_historical.json  (Coin Metrics, 2010–2017, static)
+  //   data/btc_daily.json       (Binance, 2017-08 → today, daily)
+  // Fall back to Binance paginated API if static JSON isn't reachable.
   try {
     setStatus("加载历史数据…");
-    const r = await fetch("./data/btc_daily.json", { cache: "no-cache" });
-    if (r.ok) {
-      const j = await r.json();
-      if (Array.isArray(j.bars) && j.bars.length > WINDOW) {
-        dataStamp = j.updated || null;
-        return j.bars.map(b => ({ t: b.t, close: b.c }));
-      }
+    const [histR, dailyR] = await Promise.all([
+      fetch("./data/btc_historical.json", { cache: "no-cache" }).catch(() => null),
+      fetch("./data/btc_daily.json",      { cache: "no-cache" }).catch(() => null),
+    ]);
+    const merged = new Map();
+    if (histR && histR.ok) {
+      const j = await histR.json();
+      (j.bars || []).forEach(b => merged.set(b.t, b.c));
+    }
+    if (dailyR && dailyR.ok) {
+      const j = await dailyR.json();
+      dataStamp = j.updated || null;
+      // Binance values take precedence over Coin Metrics on any overlap.
+      (j.bars || []).forEach(b => merged.set(b.t, b.c));
+    }
+    if (merged.size > WINDOW) {
+      const keys = [...merged.keys()].sort((a, b) => a - b);
+      return keys.map(t => ({ t, close: merged.get(t) }));
     }
   } catch (_) { /* fall through */ }
 
@@ -311,22 +375,72 @@ function computeSeries(bars) {
 }
 
 let fullSeries = [];
-let currentRange = "1Y";
 let chart;
 let dataStamp = null;  // ISO string from data/btc_daily.json "updated" field
+// Brush-driven range (indices into fullSeries).
+let brushI0 = 0;
+let brushI1 = 0;
 
-function sliceByRange(series, range) {
-  const days = RANGE_DAYS[range];
-  if (!isFinite(days)) return series;
-  return series.slice(-days);
+// ---------- tick helpers ----------
+// Generate 1-2-5 log-decade tick values inside [minV, maxV].
+function logTicks(minV, maxV) {
+  if (!(minV > 0) || !(maxV > minV)) return [];
+  const out = [];
+  const lMin = Math.floor(Math.log10(minV));
+  const lMax = Math.ceil(Math.log10(maxV));
+  for (let k = lMin; k <= lMax; k++) {
+    for (const m of [1, 2, 5]) {
+      const v = m * Math.pow(10, k);
+      if (v >= minV * 0.999 && v <= maxV * 1.001) out.push(v);
+    }
+  }
+  return out;
+}
+// Round down/up to the nearest 1-2-5 * 10^k value.
+function niceFloor(v) {
+  if (v <= 0) return 0.001;
+  const l = Math.log10(v);
+  const k = Math.floor(l);
+  const r = Math.pow(10, l - k);  // 1..10
+  const m = r < 2 ? 1 : (r < 5 ? 2 : 5);
+  return m * Math.pow(10, k);
+}
+function niceCeil(v) {
+  if (v <= 0) return 0.001;
+  const l = Math.log10(v);
+  const k = Math.floor(l);
+  const r = Math.pow(10, l - k);
+  const m = r <= 1.0001 ? 1 : (r <= 2.0001 ? 2 : (r <= 5.0001 ? 5 : 10));
+  return m * Math.pow(10, k);
+}
+function fmtBtcCN(v) {
+  if (v >= 1_000_000) return "$" + (v / 10_000).toLocaleString("en-US", {maximumFractionDigits:0}) + "万";
+  if (v >= 10_000)    return "$" + (v / 10_000).toLocaleString("en-US", {maximumFractionDigits:1}) + "万";
+  if (v >= 1)         return "$" + v.toLocaleString("en-US", {maximumFractionDigits:0});
+  return "$" + v.toFixed(2);
+}
+function fmtAhr(v) {
+  if (v >= 1)   return String(v);
+  if (v >= 0.1) return v.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+  return v.toFixed(4);
 }
 
 function renderChart() {
-  const data = sliceByRange(fullSeries, currentRange);
+  const data = fullSeries.slice(brushI0, brushI1 + 1);
+  if (!data.length) return;
   const labels = data.map(s => s.t);
   const ahrD = data.map(s => ({ x: s.t, y: s.ahr }));
   const prcD = data.map(s => ({ x: s.t, y: s.price }));
   const gmD  = data.map(s => ({ x: s.t, y: s.gm }));
+
+  // Dynamic Y-axis bounds per visible window.
+  const ahrVals = data.map(s => s.ahr);
+  const prcVals = [...data.map(s => s.price), ...data.map(s => s.gm)];
+  // Always include threshold lines inside the ahr999 axis so they stay visible.
+  const ahrLo = niceFloor(Math.min(0.45 / 1.1, ...ahrVals));
+  const ahrHi = niceCeil(Math.max(1.2 * 1.1,  ...ahrVals));
+  const prcLo = niceFloor(Math.min(...prcVals));
+  const prcHi = niceCeil(Math.max(...prcVals));
 
   const ctx = el("chart").getContext("2d");
   if (chart) chart.destroy();
@@ -377,35 +491,33 @@ function renderChart() {
         },
       },
       scales: {
-        x: {
-          type: "time",
-          time: { unit: currentRange === "1M" || currentRange === "3M" ? "week" : (currentRange === "6M" || currentRange === "1Y" ? "month" : "year") },
-          ticks: { color: "#6e7681" },
-          grid: { color: "rgba(255,255,255,0.04)" },
-        },
+        x: (() => {
+          const spanDays = (data[data.length - 1].t - data[0].t) / 86400000;
+          const unit = spanDays <= 45 ? "day" : spanDays <= 400 ? "month" : (spanDays <= 1200 ? "month" : "year");
+          return {
+            type: "time",
+            time: { unit },
+            ticks: { color: "#6e7681", maxRotation: 0, autoSkip: true, maxTicksLimit: 10 },
+            grid: { color: "rgba(255,255,255,0.04)" },
+          };
+        })(),
         y: {
-          // LEFT: ahr999 scale
+          // LEFT: ahr999 (dynamic ticks based on visible window)
           type: "logarithmic", position: "left",
-          min: 0.1, max: 100,
+          min: ahrLo, max: ahrHi,
           ticks: {
             color: "#9ca3af", autoSkip: false,
-            callback: (v) => [0.1, 1, 10, 100].includes(v) ? (v === 0.1 ? "0.1000" : String(v)) : "",
+            callback: (v) => logTicks(ahrLo, ahrHi).some(t => Math.abs(t - v) / v < 1e-6) ? fmtAhr(v) : "",
           },
           grid: { color: "rgba(255,255,255,0.04)" },
         },
         y2: {
-          // RIGHT: BTC price in USD, tick labels in CN units ($1 $10 $100 $1000 $1万 $10万 $100万)
+          // RIGHT: BTC price (dynamic ticks)
           type: "logarithmic", position: "right",
-          min: 1, max: 1_000_000,
+          min: prcLo, max: prcHi,
           ticks: {
             color: "#9ca3af", autoSkip: false,
-            callback: (v) => {
-              const map = {
-                1: "$1", 10: "$10", 100: "$100", 1000: "$1000",
-                10000: "$1万", 100000: "$10万", 1000000: "$100万",
-              };
-              return map[v] || "";
-            },
+            callback: (v) => logTicks(prcLo, prcHi).some(t => Math.abs(t - v) / v < 1e-6) ? fmtBtcCN(v) : "",
           },
           grid: { display: false },
         },
@@ -453,6 +565,135 @@ function renderTable(series) {
   }).join("");
 }
 
+// ---------- Brush slider (bottom date-range selector) ----------
+function drawBrushCanvas() {
+  const cv = el("brushCanvas");
+  if (!fullSeries.length) return;
+  const rect = cv.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = rect.width * dpr;
+  cv.height = rect.height * dpr;
+  const ctx = cv.getContext("2d");
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+  const prices = fullSeries.map(s => s.price);
+  const logLo = Math.log(Math.min(...prices));
+  const logHi = Math.log(Math.max(...prices));
+  ctx.clearRect(0, 0, W, H);
+  // area fill
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+  for (let i = 0; i < fullSeries.length; i++) {
+    const x = (i / (fullSeries.length - 1)) * W;
+    const y = H - ((Math.log(fullSeries[i].price) - logLo) / (logHi - logLo)) * (H - 4) - 2;
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(W, H);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(96,165,250,0.18)";
+  ctx.fill();
+  ctx.beginPath();
+  for (let i = 0; i < fullSeries.length; i++) {
+    const x = (i / (fullSeries.length - 1)) * W;
+    const y = H - ((Math.log(fullSeries[i].price) - logLo) / (logHi - logLo)) * (H - 4) - 2;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = "rgba(96,165,250,0.55)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function updateBrushUI() {
+  const n = fullSeries.length;
+  if (n < 2) return;
+  const lo = brushI0 / (n - 1);
+  const hi = brushI1 / (n - 1);
+  const win = el("brushWindow");
+  const ml  = el("brushMaskL");
+  const mr  = el("brushMaskR");
+  win.style.left  = (lo * 100) + "%";
+  win.style.width = ((hi - lo) * 100) + "%";
+  ml.style.left   = "0";
+  ml.style.width  = (lo * 100) + "%";
+  mr.style.right  = "0";
+  mr.style.width  = ((1 - hi) * 100) + "%";
+  el("brush-lo").textContent = fmtDate(fullSeries[brushI0].t);
+  el("brush-hi").textContent = fmtDate(fullSeries[brushI1].t);
+}
+
+function setBrushByDays(days) {
+  const n = fullSeries.length;
+  if (!n) return;
+  if (!isFinite(days) || days >= n) {
+    brushI0 = 0; brushI1 = n - 1;
+  } else {
+    brushI1 = n - 1;
+    brushI0 = Math.max(0, n - days);
+  }
+  updateBrushUI();
+  renderChart();
+}
+
+function attachBrushDrag() {
+  const overlay = el("brushOverlay");
+  const win = el("brushWindow");
+  let state = null;  // {mode: 'l'|'r'|'move', startX, startLo, startHi}
+  const rect = () => el("brushCanvas").getBoundingClientRect();
+
+  function onDown(e) {
+    const target = e.target;
+    const handle = target.closest(".brush-handle");
+    const onWindow = target === win || target.closest(".brush-window") === win;
+    const pageX = e.touches ? e.touches[0].clientX : e.clientX;
+    state = {
+      mode: handle ? handle.dataset.handle : (onWindow ? "move" : null),
+      startX: pageX,
+      startLo: brushI0,
+      startHi: brushI1,
+    };
+    if (!state.mode) state = null;
+    if (state) {
+      e.preventDefault();
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup",   onUp);
+      window.addEventListener("touchmove", onMove, { passive: false });
+      window.addEventListener("touchend",  onUp);
+    }
+  }
+  function onMove(e) {
+    if (!state) return;
+    e.preventDefault();
+    const pageX = e.touches ? e.touches[0].clientX : e.clientX;
+    const r = rect();
+    const n = fullSeries.length - 1;
+    const dx = pageX - state.startX;
+    const di = Math.round((dx / r.width) * n);
+    if (state.mode === "l") {
+      brushI0 = Math.max(0, Math.min(state.startLo + di, state.startHi - 5));
+    } else if (state.mode === "r") {
+      brushI1 = Math.min(n, Math.max(state.startHi + di, state.startLo + 5));
+    } else {
+      const width = state.startHi - state.startLo;
+      let newLo = state.startLo + di;
+      if (newLo < 0) newLo = 0;
+      if (newLo + width > n) newLo = n - width;
+      brushI0 = newLo;
+      brushI1 = newLo + width;
+    }
+    updateBrushUI();
+    renderChart();
+  }
+  function onUp() {
+    state = null;
+    window.removeEventListener("mousemove", onMove);
+    window.removeEventListener("mouseup",   onUp);
+    window.removeEventListener("touchmove", onMove);
+    window.removeEventListener("touchend",  onUp);
+  }
+  overlay.addEventListener("mousedown",  onDown);
+  overlay.addEventListener("touchstart", onDown, { passive: false });
+}
+
 function updateCards(latest) {
   el("price").textContent = fmt$2(latest.price);
   el("price-ts").textContent = fmtDate(latest.t) + " · 每 60s 刷新";
@@ -482,11 +723,16 @@ async function bootstrap() {
     setStatus("拉取历史 K 线…");
     bars = await fetchKlines();
     fullSeries = computeSeries(bars);
-    renderChart();
+    // Default: last 1Y.
+    setBrushByDays(RANGE_DAYS["1Y"]);
+    drawBrushCanvas();
+    attachBrushDrag();
     renderTable(fullSeries);
     updateCards(fullSeries[fullSeries.length - 1]);
     const stamp = dataStamp ? ` · 数据快照 ${dataStamp.slice(0,10)}` : "";
     setStatus("已加载 · " + new Date().toLocaleTimeString("zh-CN", { hour12: false }) + stamp, "ok");
+    // Immediate ticker fetch so visitors see today's live price without waiting 60s.
+    refreshTicker();
   } catch (e) {
     console.error(e);
     setStatus("加载失败: " + e.message, "err");
@@ -500,22 +746,16 @@ async function refreshTicker() {
     const last = bars[bars.length - 1];
     const now = new Date();
     const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-    if (last.t >= todayUTC) last.close = price;
-    else bars.push({ t: todayUTC, close: price });
+    const appendedToday = last.t < todayUTC;
+    if (appendedToday) bars.push({ t: todayUTC, close: price });
+    else last.close = price;
     fullSeries = computeSeries(bars);
+    // If we added a new bar, extend brushI1 to keep today visible.
+    if (appendedToday) brushI1 = fullSeries.length - 1;
     const latest = fullSeries[fullSeries.length - 1];
-
-    // in-place chart update for the last point
-    if (chart) {
-      const inView = sliceByRange(fullSeries, currentRange);
-      const ahrDs = chart.data.datasets[0].data;
-      const prcDs = chart.data.datasets[1].data;
-      if (inView.length && ahrDs.length) {
-        ahrDs[ahrDs.length - 1] = { x: latest.t, y: latest.ahr };
-        prcDs[prcDs.length - 1] = { x: latest.t, y: latest.price };
-        chart.update("none");
-      }
-    }
+    renderChart();
+    drawBrushCanvas();
+    updateBrushUI();
     renderTable(fullSeries);
     updateCards(latest);
     setStatus("已更新 · " + new Date().toLocaleTimeString("zh-CN", { hour12: false }), "ok");
@@ -529,9 +769,14 @@ async function refreshTicker() {
 el("ranges").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-r]");
   if (!b) return;
-  currentRange = b.dataset.r;
   el("ranges").querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b));
-  if (fullSeries.length) renderChart();
+  setBrushByDays(RANGE_DAYS[b.dataset.r]);
+});
+
+// Redraw brush canvas on resize (main chart is handled by Chart.js responsive mode).
+window.addEventListener("resize", () => {
+  drawBrushCanvas();
+  updateBrushUI();
 });
 
 bootstrap().then(() => setInterval(refreshTicker, REFRESH_MS));
