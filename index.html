@@ -750,18 +750,41 @@ async function refreshTicker() {
     if (appendedToday) bars.push({ t: todayUTC, close: price });
     else last.close = price;
     fullSeries = computeSeries(bars);
-    // If we added a new bar, extend brushI1 to keep today visible.
-    if (appendedToday) brushI1 = fullSeries.length - 1;
     const latest = fullSeries[fullSeries.length - 1];
-    renderChart();
-    drawBrushCanvas();
-    updateBrushUI();
-    renderTable(fullSeries);
+
+    if (appendedToday) {
+      // New day rolled over — once/day full rebuild is fine and necessary.
+      brushI1 = fullSeries.length - 1;
+      renderChart();
+      drawBrushCanvas();
+      updateBrushUI();
+    }
+    // Intra-day: chart is intentionally NOT touched (ahr999 is a once-per-day
+    // indicator, redrawing every minute just flickers without new information).
+    // Only the numeric cards + table's latest row reflect the live ticker.
+    patchLatestTableRow(latest);
     updateCards(latest);
     setStatus("已更新 · " + new Date().toLocaleTimeString("zh-CN", { hour12: false }), "ok");
   } catch (e) {
     console.error(e);
     setStatus("刷新失败: " + e.message, "err");
+  }
+}
+
+// Update just the first (today's) row of the table, instead of rewriting tbody.
+function patchLatestTableRow(r) {
+  const tbody = el("tbl").querySelector("tbody");
+  const tr = tbody.querySelector("tr:first-child");
+  if (!tr) return renderTable(fullSeries);
+  const z = zoneOf(r.ahr);
+  const cells = tr.children;
+  if (cells.length >= 6) {
+    cells[0].textContent = fmtDate(r.t);
+    cells[1].textContent = r.ahr.toFixed(4);
+    cells[2].textContent = fmt$2(r.price);
+    cells[3].textContent = fmt$(r.gm);
+    cells[4].textContent = fmt$(r.fit);
+    cells[5].innerHTML = `<span class="badge ${z}">${z}</span>`;
   }
 }
 
