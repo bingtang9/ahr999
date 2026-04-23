@@ -181,6 +181,30 @@
   footer code { background: var(--bg-2); border: 1px solid var(--border);
     padding: 1px 6px; border-radius: 3px; color: var(--ink-2); }
 
+  /* WeChat-id copy button */
+  .wx-copy {
+    background: transparent; border: 0; padding: 0;
+    font: inherit; color: inherit; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px;
+    vertical-align: baseline;
+  }
+  .wx-copy code { transition: background 0.15s, border-color 0.15s; }
+  .wx-copy:hover code { background: var(--bg); border-color: var(--accent); color: var(--accent); }
+  .wx-copy-ico { font-size: 12px; color: var(--muted); line-height: 1; }
+  .wx-copy:hover .wx-copy-ico { color: var(--accent); }
+
+  /* Toast */
+  .toast {
+    position: fixed; left: 50%; bottom: 40px; transform: translate(-50%, 20px);
+    background: #16a34a; color: white;
+    padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 500;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s;
+    z-index: 1000; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast.err { background: #dc2626; }
+
   @media (max-width: 760px) {
     .wrap { padding: 14px; }
     h1 { font-size: 18px; }
@@ -335,13 +359,19 @@
 
   <footer>
     <div style="color:var(--ink-2); font-weight:600; font-size:12.5px; margin-bottom:4px;">
-      比特币航海家出品 · 微信号 <code>bing_tang_cheng</code>
+      比特币航海家出品 · 微信号
+      <button type="button" class="wx-copy" data-copy="bing_tang_cheng" title="点击复制微信号">
+        <code>bing_tang_cheng</code>
+        <span class="wx-copy-ico" aria-hidden="true">⧉</span>
+      </button>
     </div>
     数据来源：Binance BTCUSDT 日线 · 每 60 秒拉取最新 ticker 更新今日值 ·
     新参数来自公众号「定投大饼」2026 年重拟 (R² = 0.96)。
     币龄自 2009-01-03 比特币创世块起算。
   </footer>
 </div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 const GENESIS_MS = Date.UTC(2009, 0, 3);
@@ -873,6 +903,49 @@ el("ranges").addEventListener("click", (e) => {
 window.addEventListener("resize", () => {
   drawBrushCanvas();
   updateBrushUI();
+});
+
+// Toast helper (used for clipboard feedback + any other ephemeral alerts).
+let toastTimer = null;
+function showToast(msg, isError = false) {
+  const t = el("toast");
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.toggle("err", !!isError);
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+// Click-to-copy on WeChat id (and any other .wx-copy targets).
+async function copyText(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (_) { /* fall through to legacy path */ }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    ta.style.top = "0";
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch (_) {
+    return false;
+  }
+}
+document.querySelectorAll(".wx-copy").forEach(b => {
+  b.addEventListener("click", async () => {
+    const v = b.dataset.copy || b.textContent.trim();
+    const ok = await copyText(v);
+    showToast(ok ? `已复制微信号：${v}` : "复制失败，请手动长按选中", !ok);
+  });
 });
 
 // Help tooltips: click toggles on touch devices; tap outside closes.
