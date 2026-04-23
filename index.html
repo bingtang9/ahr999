@@ -72,19 +72,21 @@
     display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
   }
   .card-head h2 { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink); }
-  .range-tabs { margin-left: auto; display: inline-flex; gap: 4px; background: var(--bg-2);
-    border: 1px solid var(--border); border-radius: 6px; padding: 2px; }
+  .range-tabs { margin: 14px auto 2px; display: flex; justify-content: center; gap: 4px;
+    background: var(--bg-2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 2px; width: fit-content; }
   .range-tabs button {
     background: transparent; color: var(--ink-2); border: 0; font: inherit;
-    padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;
+    padding: 5px 14px; border-radius: 4px; cursor: pointer; font-size: 12px;
+    min-width: 44px;
   }
   .range-tabs button:hover { color: var(--ink); }
   .range-tabs button.active { background: var(--accent); color: #0b0e13; font-weight: 600; }
 
   .chart-wrap { height: 480px; }
 
-  .legend { display:flex; gap:16px; flex-wrap:wrap; color: var(--ink-2);
-    font-size: 12px; margin-top: 10px; }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; color: var(--ink-2);
+    font-size: 12px; margin-left: auto; align-items: center; }
   .swatch { display:inline-block; width:10px; height:10px; border-radius: 2px;
     vertical-align:middle; margin-right:6px; }
 
@@ -165,22 +167,22 @@
   <div class="card">
     <div class="card-head">
       <h2>Ahr999 历史曲线</h2>
-      <div class="range-tabs" id="ranges">
-        <button data-r="1M">1M</button>
-        <button data-r="3M">3M</button>
-        <button data-r="6M">6M</button>
-        <button data-r="1Y" class="active">1Y</button>
-        <button data-r="3Y">3Y</button>
-        <button data-r="ALL">全部</button>
+      <div class="legend">
+        <span><span class="swatch" style="background:var(--price)"></span>BTC 价格 (左轴)</span>
+        <span><span class="swatch" style="background:var(--accent)"></span>ahr999 (右轴)</span>
+        <span><span class="swatch" style="background:rgba(34,197,94,.5)"></span>抄底 &lt; 0.45</span>
+        <span><span class="swatch" style="background:rgba(234,179,8,.5)"></span>定投 0.45 – 1.2</span>
+        <span><span class="swatch" style="background:rgba(239,68,68,.5)"></span>停止定投 ≥ 1.2</span>
       </div>
     </div>
     <div class="chart-wrap"><canvas id="chart"></canvas></div>
-    <div class="legend">
-      <span><span class="swatch" style="background:rgba(34,197,94,.5)"></span>抄底 &lt; 0.45</span>
-      <span><span class="swatch" style="background:rgba(234,179,8,.5)"></span>定投 0.45 – 1.2</span>
-      <span><span class="swatch" style="background:rgba(239,68,68,.5)"></span>停止定投 ≥ 1.2</span>
-      <span><span class="swatch" style="background:var(--accent)"></span>ahr999</span>
-      <span><span class="swatch" style="background:var(--price)"></span>BTC 价格 (USD)</span>
+    <div class="range-tabs" id="ranges">
+      <button data-r="1M">1M</button>
+      <button data-r="3M">3M</button>
+      <button data-r="6M">6M</button>
+      <button data-r="1Y" class="active">1Y</button>
+      <button data-r="3Y">3Y</button>
+      <button data-r="ALL">全部</button>
     </div>
   </div>
 
@@ -333,14 +335,14 @@ function renderChart() {
       labels,
       datasets: [
         {
-          label: "ahr999", data: ahrD, yAxisID: "y",
-          borderColor: "#60a5fa", backgroundColor: "rgba(96,165,250,0.08)",
-          borderWidth: 1.8, pointRadius: 0, tension: 0,
-        },
-        {
-          label: "BTC 价格", data: prcD, yAxisID: "y2",
+          label: "BTC 价格", data: prcD, yAxisID: "y",
           borderColor: "#f59e0b", backgroundColor: "transparent",
           borderWidth: 1.1, pointRadius: 0, tension: 0,
+        },
+        {
+          label: "ahr999", data: ahrD, yAxisID: "y2",
+          borderColor: "#60a5fa", backgroundColor: "rgba(96,165,250,0.08)",
+          borderWidth: 1.8, pointRadius: 0, tension: 0,
         },
       ],
     },
@@ -372,18 +374,18 @@ function renderChart() {
           grid: { color: "rgba(255,255,255,0.04)" },
         },
         y: {
-          type: "logarithmic", min: 0.15, max: 6,
-          ticks: { color: "#6e7681",
-            callback: (v) => [0.2, 0.45, 1, 1.2, 2, 4].includes(v) ? v : "" },
+          type: "logarithmic", position: "left",
+          ticks: { color: "#f59e0b",
+            callback: (v) => { const l = Math.log10(v); return Math.abs(l - Math.round(l)) < 1e-6 ? fmt$(v) : ""; } },
           grid: { color: "rgba(255,255,255,0.04)" },
-          title: { display: true, text: "ahr999 (log)", color: "#6e7681", font: { size: 11 } },
+          title: { display: true, text: "BTC 价格 (USD, log)", color: "#f59e0b", font: { size: 11 } },
         },
         y2: {
-          type: "logarithmic", position: "right",
-          ticks: { color: "#6e7681",
-            callback: (v) => { const l = Math.log10(v); return Math.abs(l - Math.round(l)) < 1e-6 ? fmt$(v) : ""; } },
+          type: "logarithmic", position: "right", min: 0.15, max: 6,
+          ticks: { color: "#60a5fa",
+            callback: (v) => [0.2, 0.45, 1, 1.2, 2, 4].includes(v) ? v : "" },
           grid: { display: false },
-          title: { display: true, text: "BTC USD (log)", color: "#6e7681", font: { size: 11 } },
+          title: { display: true, text: "ahr999 (log)", color: "#60a5fa", font: { size: 11 } },
         },
       },
     },
@@ -392,7 +394,8 @@ function renderChart() {
       beforeDraw(c) {
         const { ctx, chartArea, scales } = c;
         if (!chartArea) return;
-        const y = scales.y;
+        // Zone bands are tied to the ahr999 axis, which is now y2 (right).
+        const y = scales.y2;
         const bands = [
           { from: 0.01,  to: 0.45, fill: "rgba(34, 197, 94, 0.09)" },
           { from: 0.45,  to: 1.20, fill: "rgba(234, 179, 8, 0.09)" },
@@ -405,7 +408,6 @@ function renderChart() {
           ctx.fillStyle = b.fill;
           ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
         });
-        // threshold dashed lines
         [[0.45, "rgba(34,197,94,.55)"], [1.2, "rgba(239,68,68,.55)"]].forEach(([v, col]) => {
           ctx.strokeStyle = col;
           ctx.setLineDash([4, 4]);
