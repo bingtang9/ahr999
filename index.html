@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>比特币 Ahr999 指标 · 2026 新参数</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<style>
+  :root {
+    --bg:       #0b0e13;
+    --bg-2:     #121722;
+    --panel:    #141a24;
+    --border:   #1f2937;
+    --ink:      #e6edf3;
+    --ink-2:    #b8c1cc;
+    --muted:    #6e7681;
+    --green:    #22c55e;
+    --yellow:   #eab308;
+    --red:      #ef4444;
+    --accent:   #60a5fa;
+    --price:    #f59e0b;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:var(--bg); color:var(--ink);
+    font: 14px/1.55 -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif; }
+  a { color: var(--accent); text-decoration: none; }
+
+  /* Top bar */
+  .topbar {
+    height: 48px; background: var(--bg-2); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 20px; gap: 18px;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .brand { font-weight: 700; font-size: 15px; letter-spacing: .02em; }
+  .brand .tag { color: var(--muted); font-weight: 400; margin-left: 6px; font-size: 12px; }
+  .topbar .author { margin-left: auto; font-size: 12px; color: var(--ink-2); }
+  .topbar .author code { background: var(--bg); border: 1px solid var(--border);
+    color: var(--accent); padding: 1px 6px; border-radius: 3px; font-size: 11.5px; }
+  .topbar .status { margin-left: 16px; font-size: 12px; color: var(--muted); }
+  .status.ok { color: var(--green); }
+  .status.err { color: var(--red); }
+  .dot { display:inline-block; width:6px; height:6px; border-radius: 50%;
+    background: var(--muted); margin-right: 6px; vertical-align: middle; }
+  .status.ok .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+
+  /* Main layout */
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 20px 20px 48px; }
+  h1 { margin: 6px 0 18px; font-size: 22px; font-weight: 600; }
+  .subtitle { color: var(--muted); font-size: 12.5px; margin-top: -12px; margin-bottom: 20px; }
+
+  /* Stat cards */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+  .stat {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .stat .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+  .stat .value { font-size: 22px; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .stat .hint  { font-size: 11px; color: var(--ink-2); margin-top: 4px; }
+  .zone-抄底 { color: var(--green); }
+  .zone-定投 { color: var(--yellow); }
+  .zone-停止定投 { color: var(--red); }
+
+  /* Chart card */
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .card + .card { margin-top: 16px; }
+  .card-head {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  }
+  .card-head h2 { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink); }
+  .range-tabs { margin-left: auto; display: inline-flex; gap: 4px; background: var(--bg-2);
+    border: 1px solid var(--border); border-radius: 6px; padding: 2px; }
+  .range-tabs button {
+    background: transparent; color: var(--ink-2); border: 0; font: inherit;
+    padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;
+  }
+  .range-tabs button:hover { color: var(--ink); }
+  .range-tabs button.active { background: var(--accent); color: #0b0e13; font-weight: 600; }
+
+  .chart-wrap { height: 480px; }
+
+  .legend { display:flex; gap:16px; flex-wrap:wrap; color: var(--ink-2);
+    font-size: 12px; margin-top: 10px; }
+  .swatch { display:inline-block; width:10px; height:10px; border-radius: 2px;
+    vertical-align:middle; margin-right:6px; }
+
+  /* Table */
+  .tbl-wrap { max-height: 440px; overflow: auto; border-radius: 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    position: sticky; top: 0; background: var(--bg-2); color: var(--muted);
+    text-align: right; padding: 9px 14px; font-weight: 500; font-size: 12px;
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  thead th:first-child { text-align: left; }
+  tbody td {
+    padding: 8px 14px; border-bottom: 1px solid var(--border);
+    text-align: right; font-variant-numeric: tabular-nums;
+  }
+  tbody td:first-child { text-align: left; color: var(--ink-2); }
+  tbody tr:hover td { background: rgba(96, 165, 250, 0.04); }
+  .badge {
+    display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px;
+    font-weight: 600;
+  }
+  .badge.抄底 { background: rgba(34,197,94,0.15); color: var(--green); }
+  .badge.定投 { background: rgba(234,179,8,0.15); color: var(--yellow); }
+  .badge.停止定投 { background: rgba(239,68,68,0.15); color: var(--red); }
+
+  footer { color: var(--muted); font-size: 11.5px; margin-top: 18px; line-height: 1.9; }
+  footer code { background: var(--bg-2); border: 1px solid var(--border);
+    padding: 1px 6px; border-radius: 3px; color: var(--ink-2); }
+
+  @media (max-width: 760px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .chart-wrap { height: 360px; }
+    .range-tabs { margin-left: 0; }
+    .card-head { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">Ahr999 Monitor <span class="tag">· 2026 新参数</span></div>
+  <div class="author">比特币航海家出品 · 微信号 <code>bing_tang_cheng</code></div>
+  <div class="status" id="status"><span class="dot"></span>初始化…</div>
+</div>
+
+<div class="wrap">
+  <h1>比特币 Ahr999 指标</h1>
+  <div class="subtitle">
+    公式 <code style="background:transparent;border:0;padding:0;color:var(--ink-2)">
+    ahr999 = (现价 / 200日几何均值) × (现价 / 拟合公允值)</code> ·
+    拟合 <code style="background:transparent;border:0;padding:0;color:var(--ink-2)">10^(5.64·log10(币龄天数) − 16.33)</code>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="label">BTC 价格</div>
+      <div class="value" id="price">—</div>
+      <div class="hint" id="price-ts">—</div>
+    </div>
+    <div class="stat">
+      <div class="label">ahr999 囤币指标</div>
+      <div class="value" id="ahr">—</div>
+      <div class="hint" id="zone">—</div>
+    </div>
+    <div class="stat">
+      <div class="label">拟合公允值</div>
+      <div class="value" id="fit">—</div>
+      <div class="hint" id="fit-diff">—</div>
+    </div>
+    <div class="stat">
+      <div class="label">200 日定投成本</div>
+      <div class="value" id="gm">—</div>
+      <div class="hint" id="gm-diff">—</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Ahr999 历史曲线</h2>
+      <div class="range-tabs" id="ranges">
+        <button data-r="1M">1M</button>
+        <button data-r="3M">3M</button>
+        <button data-r="6M">6M</button>
+        <button data-r="1Y" class="active">1Y</button>
+        <button data-r="3Y">3Y</button>
+        <button data-r="ALL">全部</button>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="chart"></canvas></div>
+    <div class="legend">
+      <span><span class="swatch" style="background:rgba(34,197,94,.5)"></span>抄底 &lt; 0.45</span>
+      <span><span class="swatch" style="background:rgba(234,179,8,.5)"></span>定投 0.45 – 1.2</span>
+      <span><span class="swatch" style="background:rgba(239,68,68,.5)"></span>停止定投 ≥ 1.2</span>
+      <span><span class="swatch" style="background:var(--accent)"></span>ahr999</span>
+      <span><span class="swatch" style="background:var(--price)"></span>BTC 价格 (USD)</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>历史数据</h2>
+      <div class="status" style="margin-left:auto; font-size:12px;">最近 60 天</div>
+    </div>
+    <div class="tbl-wrap">
+      <table id="tbl">
+        <thead>
+          <tr>
+            <th>时间</th>
+            <th>ahr999 囤币指标</th>
+            <th>BTC 价格</th>
+            <th>200 日定投成本</th>
+            <th>拟合公允值</th>
+            <th>区间</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    <div style="color:var(--ink-2); font-weight:600; font-size:12.5px; margin-bottom:4px;">
+      比特币航海家出品 · 微信号 <code>bing_tang_cheng</code>
+    </div>
+    数据来源：Binance BTCUSDT 日线 · 每 60 秒拉取最新 ticker 更新今日值 ·
+    新参数来自公众号「定投大饼」2026 年重拟 (R² = 0.96)。
+    币龄自 2009-01-03 比特币创世块起算。
+  </footer>
+</div>
+
+<script>
+const GENESIS_MS = Date.UTC(2009, 0, 3);
+const WINDOW = 200;
+const SLOPE = 5.64;
+const INTERCEPT = 16.33;
+const PAGE_LIMIT = 1000;            // Binance single-request cap
+const HISTORY_START_MS = Date.UTC(2017, 7, 1);  // BTCUSDT listed 2017-08-17
+const REFRESH_MS = 60_000;
+
+const RANGE_DAYS = { "1M": 30, "3M": 90, "6M": 180, "1Y": 365, "3Y": 1095, "ALL": Infinity };
+
+const el = (id) => document.getElementById(id);
+const fmt$ = (v) => "$" + v.toLocaleString("en-US", { maximumFractionDigits: 0 });
+const fmt$2 = (v) => "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt3 = (v) => v.toFixed(3);
+const fmtPct = (v) => (v >= 0 ? "+" : "") + (v * 100).toFixed(1) + "%";
+const fmtDate = (ms) => {
+  const d = new Date(ms);
+  return d.getUTCFullYear() + "-" +
+    String(d.getUTCMonth()+1).padStart(2,"0") + "-" +
+    String(d.getUTCDate()).padStart(2,"0");
+};
+
+function zoneOf(v) {
+  if (v < 0.45) return "抄底";
+  if (v < 1.2) return "定投";
+  return "停止定投";
+}
+
+async function fetchKlines() {
+  // Prefer the static JSON baked by GitHub Actions (fast, cache-friendly,
+  // works in regions that can't reach api.binance.com). Fall back to the
+  // Binance paginated API when running locally or if the JSON is missing.
+  try {
+    setStatus("加载历史数据…");
+    const r = await fetch("./data/btc_daily.json", { cache: "no-cache" });
+    if (r.ok) {
+      const j = await r.json();
+      if (Array.isArray(j.bars) && j.bars.length > WINDOW) {
+        dataStamp = j.updated || null;
+        return j.bars.map(b => ({ t: b.t, close: b.c }));
+      }
+    }
+  } catch (_) { /* fall through */ }
+
+  // Fallback: paginate Binance klines directly.
+  const endMs = Date.now();
+  const seen = new Map();
+  let cursor = HISTORY_START_MS;
+  let page = 0;
+  while (cursor < endMs && page < 20) {
+    setStatus(`拉取历史 K 线 (Binance)… (${page + 1})`);
+    const url = `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&startTime=${cursor}&limit=${PAGE_LIMIT}`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error("klines HTTP " + r.status);
+    const batch = await r.json();
+    if (!batch.length) break;
+    for (const k of batch) seen.set(k[0], parseFloat(k[4]));
+    const lastOpen = batch[batch.length - 1][0];
+    const next = lastOpen + 86400000;
+    if (next <= cursor) break;
+    cursor = next;
+    page++;
+    if (batch.length < PAGE_LIMIT) break;
+  }
+  const keys = [...seen.keys()].sort((a, b) => a - b);
+  return keys.map(t => ({ t, close: seen.get(t) }));
+}
+
+async function fetchTicker() {
+  const url = "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT";
+  const r = await fetch(url);
+  if (!r.ok) throw new Error("ticker HTTP " + r.status);
+  return parseFloat((await r.json()).price);
+}
+
+function computeSeries(bars) {
+  const n = bars.length;
+  const logs = bars.map(b => Math.log(b.close));
+  const cum = new Array(n + 1).fill(0);
+  for (let i = 0; i < n; i++) cum[i + 1] = cum[i] + logs[i];
+  const out = [];
+  for (let i = WINDOW - 1; i < n; i++) {
+    const gm  = Math.exp((cum[i + 1] - cum[i + 1 - WINDOW]) / WINDOW);
+    const age = (bars[i].t - GENESIS_MS) / 86400000;
+    const fit = Math.pow(10, SLOPE * Math.log10(age) - INTERCEPT);
+    const ahr = (bars[i].close / gm) * (bars[i].close / fit);
+    out.push({ t: bars[i].t, price: bars[i].close, gm, fit, ahr });
+  }
+  return out;
+}
+
+let fullSeries = [];
+let currentRange = "1Y";
+let chart;
+let dataStamp = null;  // ISO string from data/btc_daily.json "updated" field
+
+function sliceByRange(series, range) {
+  const days = RANGE_DAYS[range];
+  if (!isFinite(days)) return series;
+  return series.slice(-days);
+}
+
+function renderChart() {
+  const data = sliceByRange(fullSeries, currentRange);
+  const labels = data.map(s => s.t);
+  const ahrD = data.map(s => ({ x: s.t, y: s.ahr }));
+  const prcD = data.map(s => ({ x: s.t, y: s.price }));
+
+  const ctx = el("chart").getContext("2d");
+  if (chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "ahr999", data: ahrD, yAxisID: "y",
+          borderColor: "#60a5fa", backgroundColor: "rgba(96,165,250,0.08)",
+          borderWidth: 1.8, pointRadius: 0, tension: 0,
+        },
+        {
+          label: "BTC 价格", data: prcD, yAxisID: "y2",
+          borderColor: "#f59e0b", backgroundColor: "transparent",
+          borderWidth: 1.1, pointRadius: 0, tension: 0,
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { labels: { color: "#b8c1cc", usePointStyle: true, pointStyle: "line" } },
+        tooltip: {
+          backgroundColor: "#0b0e13", borderColor: "#1f2937", borderWidth: 1,
+          titleColor: "#e6edf3", bodyColor: "#b8c1cc", padding: 10,
+          callbacks: {
+            title: (arr) => fmtDate(arr[0].parsed.x),
+            label(c) {
+              if (c.dataset.label === "ahr999") {
+                const v = c.parsed.y;
+                return ` ahr999: ${v.toFixed(3)}  [${zoneOf(v)}]`;
+              }
+              return ` BTC: ${fmt$(c.parsed.y)}`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          type: "time",
+          time: { unit: currentRange === "1M" || currentRange === "3M" ? "week" : (currentRange === "6M" || currentRange === "1Y" ? "month" : "year") },
+          ticks: { color: "#6e7681" },
+          grid: { color: "rgba(255,255,255,0.04)" },
+        },
+        y: {
+          type: "logarithmic", min: 0.15, max: 6,
+          ticks: { color: "#6e7681",
+            callback: (v) => [0.2, 0.45, 1, 1.2, 2, 4].includes(v) ? v : "" },
+          grid: { color: "rgba(255,255,255,0.04)" },
+          title: { display: true, text: "ahr999 (log)", color: "#6e7681", font: { size: 11 } },
+        },
+        y2: {
+          type: "logarithmic", position: "right",
+          ticks: { color: "#6e7681",
+            callback: (v) => { const l = Math.log10(v); return Math.abs(l - Math.round(l)) < 1e-6 ? fmt$(v) : ""; } },
+          grid: { display: false },
+          title: { display: true, text: "BTC USD (log)", color: "#6e7681", font: { size: 11 } },
+        },
+      },
+    },
+    plugins: [{
+      id: "zones",
+      beforeDraw(c) {
+        const { ctx, chartArea, scales } = c;
+        if (!chartArea) return;
+        const y = scales.y;
+        const bands = [
+          { from: 0.01,  to: 0.45, fill: "rgba(34, 197, 94, 0.09)" },
+          { from: 0.45,  to: 1.20, fill: "rgba(234, 179, 8, 0.09)" },
+          { from: 1.20,  to: 100,  fill: "rgba(239, 68, 68, 0.09)" },
+        ];
+        ctx.save();
+        bands.forEach(b => {
+          const yTop = y.getPixelForValue(b.to);
+          const yBot = y.getPixelForValue(b.from);
+          ctx.fillStyle = b.fill;
+          ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
+        });
+        // threshold dashed lines
+        [[0.45, "rgba(34,197,94,.55)"], [1.2, "rgba(239,68,68,.55)"]].forEach(([v, col]) => {
+          ctx.strokeStyle = col;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(chartArea.left, y.getPixelForValue(v));
+          ctx.lineTo(chartArea.right, y.getPixelForValue(v));
+          ctx.stroke();
+        });
+        ctx.setLineDash([]);
+        ctx.restore();
+      },
+    }],
+  });
+}
+
+function renderTable(series) {
+  const rows = series.slice(-60).reverse();
+  const tbody = el("tbl").querySelector("tbody");
+  tbody.innerHTML = rows.map(r => {
+    const z = zoneOf(r.ahr);
+    return `<tr>
+      <td>${fmtDate(r.t)}</td>
+      <td>${r.ahr.toFixed(4)}</td>
+      <td>${fmt$2(r.price)}</td>
+      <td>${fmt$(r.gm)}</td>
+      <td>${fmt$(r.fit)}</td>
+      <td><span class="badge ${z}">${z}</span></td>
+    </tr>`;
+  }).join("");
+}
+
+function updateCards(latest) {
+  el("price").textContent = fmt$2(latest.price);
+  el("price-ts").textContent = fmtDate(latest.t) + " · 每 60s 刷新";
+  el("ahr").textContent = fmt3(latest.ahr);
+  const z = zoneOf(latest.ahr);
+  const zEl = el("zone");
+  zEl.textContent = z + "区间";
+  zEl.className = "hint zone-" + z;
+  el("fit").textContent = fmt$(latest.fit);
+  const fitDiff = (latest.price - latest.fit) / latest.fit;
+  el("fit-diff").textContent = "现价 vs 公允值 " + fmtPct(fitDiff);
+  el("gm").textContent = fmt$(latest.gm);
+  const gmDiff = (latest.price - latest.gm) / latest.gm;
+  el("gm-diff").textContent = "现价 vs 成本 " + fmtPct(gmDiff);
+}
+
+function setStatus(msg, cls) {
+  const s = el("status");
+  s.innerHTML = `<span class="dot"></span>${msg}`;
+  s.className = "status " + (cls || "");
+}
+
+let bars = null;
+
+async function bootstrap() {
+  try {
+    setStatus("拉取历史 K 线…");
+    bars = await fetchKlines();
+    fullSeries = computeSeries(bars);
+    renderChart();
+    renderTable(fullSeries);
+    updateCards(fullSeries[fullSeries.length - 1]);
+    const stamp = dataStamp ? ` · 数据快照 ${dataStamp.slice(0,10)}` : "";
+    setStatus("已加载 · " + new Date().toLocaleTimeString("zh-CN", { hour12: false }) + stamp, "ok");
+  } catch (e) {
+    console.error(e);
+    setStatus("加载失败: " + e.message, "err");
+  }
+}
+
+async function refreshTicker() {
+  if (!bars || !bars.length) return;
+  try {
+    const price = await fetchTicker();
+    const last = bars[bars.length - 1];
+    const now = new Date();
+    const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    if (last.t >= todayUTC) last.close = price;
+    else bars.push({ t: todayUTC, close: price });
+    fullSeries = computeSeries(bars);
+    const latest = fullSeries[fullSeries.length - 1];
+
+    // in-place chart update for the last point
+    if (chart) {
+      const inView = sliceByRange(fullSeries, currentRange);
+      const ahrDs = chart.data.datasets[0].data;
+      const prcDs = chart.data.datasets[1].data;
+      if (inView.length && ahrDs.length) {
+        ahrDs[ahrDs.length - 1] = { x: latest.t, y: latest.ahr };
+        prcDs[prcDs.length - 1] = { x: latest.t, y: latest.price };
+        chart.update("none");
+      }
+    }
+    renderTable(fullSeries);
+    updateCards(latest);
+    setStatus("已更新 · " + new Date().toLocaleTimeString("zh-CN", { hour12: false }), "ok");
+  } catch (e) {
+    console.error(e);
+    setStatus("刷新失败: " + e.message, "err");
+  }
+}
+
+// range tab handlers
+el("ranges").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-r]");
+  if (!b) return;
+  currentRange = b.dataset.r;
+  el("ranges").querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b));
+  if (fullSeries.length) renderChart();
+});
+
+bootstrap().then(() => setInterval(refreshTicker, REFRESH_MS));
+</script>
+</body>
+</html>

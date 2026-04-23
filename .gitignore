@@ -1,0 +1,13 @@
+# Local cache from old standalone scripts (CI now writes data/btc_daily.json).
+/btc_daily.json
+
+# cron log output
+logs/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
