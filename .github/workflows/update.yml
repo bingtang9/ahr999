@@ -2,7 +2,8 @@ name: update-btc-data
 
 on:
   schedule:
-    # Daily at 00:15 UTC (= 08:15 Beijing), same time as the local cron.
+    # Daily at 00:15 UTC (= 08:15 Beijing). Local cron runs at 08:18 Beijing,
+    # 3 minutes later, so the two channels never race on push.
     - cron: "15 0 * * *"
   workflow_dispatch: {}
 
