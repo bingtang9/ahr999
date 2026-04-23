@@ -1,13 +1,9 @@
-"""Fetch BTC daily closes and write data/btc_daily.json.
-
-Tries data sources in order:
-  1. Binance BTCUSDT   — preferred (original source, deep history)
-  2. Coinbase BTC-USD  — fallback for US-blocked environments (GitHub Actions)
+"""Fetch BTC daily closes from Binance and write data/btc_daily.json.
 
 Output: data/btc_daily.json
   {
     "updated": "2026-04-23T12:00:00Z",
-    "source":  "<which source actually produced the data>",
+    "source":  "Binance BTCUSDT daily klines",
     "bars":    [ {"t": <openTimeMs>, "c": <closeUSD>}, ... ]
   }
 """
@@ -15,7 +11,6 @@ import json
 import os
 import sys
 import time
-import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
@@ -30,7 +25,6 @@ def _get(url: str, timeout: int = 30) -> bytes:
         return r.read()
 
 
-# ---------- source 1: Binance ----------
 def fetch_binance() -> dict[int, float]:
     bars: dict[int, float] = {}
     cursor = START_MS
@@ -58,69 +52,16 @@ def fetch_binance() -> dict[int, float]:
     return bars
 
 
-# ---------- source 2: Coinbase Exchange ----------
-def fetch_coinbase() -> dict[int, float]:
-    """Coinbase candles API — max 300 candles/request, paginate with start/end.
-    Returns [[ts_seconds, low, high, open, close, volume], ...] sorted descending.
-    """
-    bars: dict[int, float] = {}
-    GRAN = 86_400
-    WINDOW = 300 * GRAN
-    now = int(time.time())
-    end = (now // GRAN) * GRAN
-    start_floor = START_MS // 1000
-    cur_end = end
-    pages = 0
-    while cur_end > start_floor and pages < 20:
-        cur_start = max(cur_end - WINDOW + GRAN, start_floor)
-        s_iso = datetime.fromtimestamp(cur_start, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
-        e_iso = datetime.fromtimestamp(cur_end,   tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
-        url = (
-            "https://api.exchange.coinbase.com/products/BTC-USD/candles"
-            f"?granularity={GRAN}&start={s_iso}&end={e_iso}"
-        )
-        batch = json.loads(_get(url))
-        if not batch:
-            break
-        for row in batch:
-            ts_s, _lo, _hi, _op, close, _vol = row
-            bars[int(ts_s) * 1000] = float(close)
-        cur_end = cur_start - GRAN
-        pages += 1
-        time.sleep(0.25)  # polite to Coinbase
-    return bars
-
-
 def main() -> int:
-    sources = [
-        ("Binance BTCUSDT daily klines", fetch_binance),
-        ("Coinbase BTC-USD daily candles", fetch_coinbase),
-    ]
-    bars: dict[int, float] = {}
-    used = None
-    errors = []
-    for name, fn in sources:
-        try:
-            bars = fn()
-            if bars:
-                used = name
-                print(f"source: {name}  rows fetched: {len(bars):,}")
-                break
-        except urllib.error.HTTPError as e:
-            errors.append(f"{name}: HTTP {e.code}")
-            print(f"skip {name}: HTTP {e.code}", file=sys.stderr)
-        except Exception as e:
-            errors.append(f"{name}: {e}")
-            print(f"skip {name}: {e}", file=sys.stderr)
-
+    bars = fetch_binance()
     if not bars:
-        print("ERROR: all sources failed -> " + " | ".join(errors), file=sys.stderr)
+        print("ERROR: Binance returned no data", file=sys.stderr)
         return 1
 
     ordered = sorted(bars.items())
     payload = {
         "updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "source": used,
+        "source": "Binance BTCUSDT daily klines",
         "bars": [{"t": t, "c": c} for t, c in ordered],
     }
 

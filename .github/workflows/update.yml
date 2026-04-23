@@ -2,7 +2,7 @@ name: update-btc-data
 
 on:
   schedule:
-    # Daily at 00:15 UTC, shortly after the daily kline closes.
+    # Daily at 00:15 UTC (= 08:15 Beijing), same time as the local cron.
     - cron: "15 0 * * *"
   workflow_dispatch: {}
 
