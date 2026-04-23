@@ -4,6 +4,13 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>比特币 Ahr999 指标 · 2026 新参数</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23121722'/%3E%3Cpath d='M14 48 L26 20 L38 48 M18 40 L34 40' stroke='%2360a5fa' stroke-width='4.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M44 20 L44 48 M44 20 Q54 20 54 30 Q54 40 44 40' stroke='%23f59e0b' stroke-width='4.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+<meta name="description" content="比特币 ahr999 囤币指标实时曲线（2026 新参数，R²=0.96）。数据源 Binance，每日自动更新。" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="比特币 Ahr999 指标 · 2026 新参数" />
+<meta property="og:description" content="实时 ahr999 曲线，含拟合公允值 / 200日定投成本 / 区间信号，历史回溯至 2011。" />
+<meta property="og:url" content="https://bingtang9.github.io/ahr999/" />
+<meta name="twitter:card" content="summary" />
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <style>
@@ -92,6 +99,25 @@
   .zone-抄底 { color: var(--green); }
   .zone-定投 { color: var(--yellow); }
   .zone-停止定投 { color: var(--red); }
+
+  /* Prominent zone pill in the ahr999 card */
+  .zone-pill {
+    display: inline-block; margin-top: 6px;
+    padding: 3px 11px; border-radius: 999px;
+    font-size: 12.5px; font-weight: 600;
+    background: rgba(156,163,175,0.12); color: var(--muted);
+    border: 1px solid rgba(156,163,175,0.3);
+    letter-spacing: 0.02em;
+  }
+  .zone-pill.zone-抄底     { background: rgba(34,197,94,0.15);  color: var(--green);  border-color: rgba(34,197,94,0.35); }
+  .zone-pill.zone-定投     { background: rgba(234,179,8,0.15);  color: var(--yellow); border-color: rgba(234,179,8,0.35); }
+  .zone-pill.zone-停止定投 { background: rgba(239,68,68,0.15);  color: var(--red);    border-color: rgba(239,68,68,0.35); }
+
+  /* Historical zone-distribution subtitle line */
+  .dist-line { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin-top: 4px; }
+  .dist-item { display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; }
+  .dist-item .dot { display:inline-block; width:8px; height:8px; border-radius:50%; }
+  .dist-count { color: var(--muted); font-size: 11px; }
 
   /* Chart card */
   .card {
@@ -262,6 +288,13 @@
     ahr999 = (现价 / 200日几何均值) × (现价 / 拟合公允值)</code> ·
     拟合 <code style="background:transparent;border:0;padding:0;color:var(--ink-2)">10^(5.64·log10(币龄天数) − 16.33)</code>
   </div>
+  <div class="subtitle dist-line" id="dist-line">
+    <span>历史时间分布：</span>
+    <span class="dist-item zone-抄底"><span class="dot" style="background:var(--green)"></span>抄底 <span id="dist-a">—</span></span>
+    <span class="dist-item zone-定投"><span class="dot" style="background:var(--yellow)"></span>定投 <span id="dist-b">—</span></span>
+    <span class="dist-item zone-停止定投"><span class="dot" style="background:var(--red)"></span>停止定投 <span id="dist-c">—</span></span>
+    <span class="dist-count" id="dist-total"></span>
+  </div>
 
   <div class="stats">
     <div class="stat">
@@ -276,7 +309,7 @@
         <span class="help" tabindex="0"><span class="tip">短期项 (现价 / 200日成本) × 长期项 (现价 / 拟合公允值)。小于 0.45 抄底，0.45–1.2 定投，大于 1.2 停止定投。</span></span>
       </div>
       <div class="value" id="ahr">—</div>
-      <div class="hint" id="zone">—</div>
+      <div class="zone-pill" id="zone">—</div>
     </div>
     <div class="stat">
       <div class="label">拟合公允值
@@ -797,20 +830,38 @@ function attachBrushDrag() {
   overlay.addEventListener("touchstart", onDown, { passive: false });
 }
 
+// Track whether we're using a live ticker price or just the JSON snapshot.
+let tickerOK = false;
+
 function updateCards(latest) {
   el("price").textContent = fmt$2(latest.price);
-  el("price-ts").textContent = fmtDate(latest.t) + " · 每 60s 刷新";
+  el("price-ts").textContent = tickerOK
+    ? (fmtDate(latest.t) + " · 每 60s 刷新")
+    : (fmtDate(latest.t) + " · 日线快照（实时价暂不可达）");
   el("ahr").textContent = fmt3(latest.ahr);
   const z = zoneOf(latest.ahr);
   const zEl = el("zone");
   zEl.textContent = z + "区间";
-  zEl.className = "hint zone-" + z;
+  zEl.className = "zone-pill zone-" + z;
   el("fit").textContent = fmt$(latest.fit);
   const fitDiff = (latest.price - latest.fit) / latest.fit;
   el("fit-diff").textContent = "现价 vs 公允值 " + fmtPct(fitDiff);
   el("gm").textContent = fmt$(latest.gm);
   const gmDiff = (latest.price - latest.gm) / latest.gm;
   el("gm-diff").textContent = "现价 vs 成本 " + fmtPct(gmDiff);
+}
+
+// Compute historical zone distribution (once, after bootstrap).
+function updateDistribution() {
+  if (!fullSeries.length) return;
+  const counts = { "抄底": 0, "定投": 0, "停止定投": 0 };
+  fullSeries.forEach(s => counts[zoneOf(s.ahr)]++);
+  const total = fullSeries.length;
+  const pct = (n) => (n / total * 100).toFixed(1) + "%";
+  el("dist-a").textContent = pct(counts["抄底"]);
+  el("dist-b").textContent = pct(counts["定投"]);
+  el("dist-c").textContent = pct(counts["停止定投"]);
+  el("dist-total").textContent = `(共 ${total.toLocaleString()} 天)`;
 }
 
 function setStatus(msg, cls) {
@@ -832,6 +883,8 @@ async function bootstrap() {
     attachBrushDrag();
     renderTable(fullSeries);
     updateCards(fullSeries[fullSeries.length - 1]);
+    updateDistribution();
+    checkDataFreshness();
     const stamp = dataStamp ? ` · 数据快照 ${dataStamp.slice(0,10)}` : "";
     setStatus("已加载 · " + new Date().toLocaleTimeString("zh-CN", { hour12: false }) + stamp, "ok");
     // Immediate ticker fetch so visitors see today's live price without waiting 60s.
@@ -842,10 +895,20 @@ async function bootstrap() {
   }
 }
 
+// Check how stale the JSON snapshot is; warn if > 36h (CI + local cron both down).
+function checkDataFreshness() {
+  if (!dataStamp) return;
+  const ageH = (Date.now() - Date.parse(dataStamp)) / 3600000;
+  if (ageH > 36) {
+    setStatus(`⚠ 数据已 ${Math.floor(ageH)} 小时未更新`, "err");
+  }
+}
+
 async function refreshTicker() {
   if (!bars || !bars.length) return;
   try {
     const price = await fetchTicker();
+    tickerOK = true;
     const last = bars[bars.length - 1];
     const now = new Date();
     const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
@@ -861,16 +924,20 @@ async function refreshTicker() {
       renderChart();
       drawBrushCanvas();
       updateBrushUI();
+      updateDistribution();
     }
-    // Intra-day: chart is intentionally NOT touched (ahr999 is a once-per-day
-    // indicator, redrawing every minute just flickers without new information).
-    // Only the numeric cards + table's latest row reflect the live ticker.
+    // Intra-day: chart is intentionally NOT touched. Only cards + latest row.
     patchLatestTableRow(latest);
     updateCards(latest);
     setStatus("已更新 · " + new Date().toLocaleTimeString("zh-CN", { hour12: false }), "ok");
   } catch (e) {
     console.error(e);
-    setStatus("刷新失败: " + e.message, "err");
+    tickerOK = false;
+    // Network failure (blocked region or offline) vs other errors.
+    const blocked = e.message?.includes("Failed to fetch") || e.message?.includes("NetworkError");
+    setStatus(blocked ? "Binance 暂不可达（使用日线快照）" : ("刷新失败: " + e.message), "err");
+    // Still refresh card labels so the hint shows the fallback message.
+    if (fullSeries.length) updateCards(fullSeries[fullSeries.length - 1]);
   }
 }
 
