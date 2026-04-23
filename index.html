@@ -639,30 +639,45 @@ function renderChart() {
           label: "ahr999 囤币指标", data: ahrD, yAxisID: "y",
           borderColor: "#60a5fa", backgroundColor: "rgba(96,165,250,0.18)",
           borderWidth: 1.4, pointRadius: 0, tension: 0, fill: "origin",
+          pointStyle: "circle",
+          pointBackgroundColor: "#60a5fa",
+          pointBorderColor: "#60a5fa",
           pointHoverRadius: 5,
           pointHoverBackgroundColor: "#60a5fa",
           pointHoverBorderColor: "#0b0e13",
           pointHoverBorderWidth: 2,
+          hoverRadius: 5,
+          hoverBackgroundColor: "#60a5fa",
           order: 3,
         },
         {
           label: "200 日定投成本", data: gmD, yAxisID: "y2",
           borderColor: "#cbd5e1", backgroundColor: "transparent",
           borderWidth: 1.1, pointRadius: 0, tension: 0,
+          pointStyle: "circle",
+          pointBackgroundColor: "#cbd5e1",
+          pointBorderColor: "#cbd5e1",
           pointHoverRadius: 5,
           pointHoverBackgroundColor: "#cbd5e1",
           pointHoverBorderColor: "#0b0e13",
           pointHoverBorderWidth: 2,
+          hoverRadius: 5,
+          hoverBackgroundColor: "#cbd5e1",
           order: 1,
         },
         {
           label: "BTC 价格", data: prcD, yAxisID: "y2",
           borderColor: "#f59e0b", backgroundColor: "transparent",
           borderWidth: 1.1, pointRadius: 0, tension: 0,
+          pointStyle: "circle",
+          pointBackgroundColor: "#f59e0b",
+          pointBorderColor: "#f59e0b",
           pointHoverRadius: 5,
           pointHoverBackgroundColor: "#f59e0b",
           pointHoverBorderColor: "#0b0e13",
           pointHoverBorderWidth: 2,
+          hoverRadius: 5,
+          hoverBackgroundColor: "#f59e0b",
           order: 2,
         },
       ],
@@ -759,6 +774,20 @@ function renderChart() {
         ctx.lineTo(x, chartArea.bottom);
         ctx.stroke();
         ctx.setLineDash([]);
+        // Explicit solid dots at each active point — works even when
+        // Chart.js itself skips pointHover styling in intersect:false mode.
+        active.forEach(a => {
+          const ds = c.data.datasets[a.datasetIndex];
+          const color = ds.borderColor;
+          const px = a.element.x, py = a.element.y;
+          ctx.fillStyle = color;
+          ctx.strokeStyle = "#0b0e13";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(px, py, 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        });
         ctx.restore();
       },
     }],
