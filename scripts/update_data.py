@@ -1,27 +1,34 @@
-"""Fetch BTC daily closes from Binance (with mirror fallback) and write data/btc_daily.json.
+"""Fetch BTC daily closes from Binance (with mirror fallback), merge with static
+historical data, precompute ahr999 / gm200 / fit per bar, write data/btc_daily.json.
 
 Binance main API is geo-blocked (HTTP 451) in some US datacenters including GitHub
-Actions' Azure runners. We try a list of Binance mirror hosts in order; the data
-format is identical across them.
+Actions' Azure runners. We try a list of Binance mirror hosts in order.
 
 Output: data/btc_daily.json
   {
-    "updated": "2026-04-23T12:00:00Z",
-    "source":  "Binance BTCUSDT daily klines (<host>)",
-    "bars":    [ {"t": <openTimeMs>, "c": <closeUSD>}, ... ]
+    "updated":  "...",
+    "source":   "...",
+    "bars":     [ {"t": ms, "c": close, "gm": gm200, "fit": fit, "ahr": ahr999 }, ... ]
   }
+Bars before the 200-day window have no indicators (gm/fit/ahr = null).
 """
 import json
+import math
 import os
 import sys
 import time
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
+HERE = os.path.dirname(__file__)
 START_MS = int(datetime(2017, 8, 1, tzinfo=timezone.utc).timestamp() * 1000)
-OUT = os.path.join(os.path.dirname(__file__), "..", "data", "btc_daily.json")
+OUT = os.path.join(HERE, "..", "data", "btc_daily.json")
+HIST = os.path.join(HERE, "..", "data", "btc_historical.json")
 UA = {"User-Agent": "ahr999-updater/1.0"}
+GENESIS = date(2009, 1, 3)
+WINDOW = 200
+SLOPE, INTERCEPT = 5.64, 16.33
 
 # Binance API hosts tried in order. All serve the same /api/v3/klines endpoint.
 BINANCE_HOSTS = [
@@ -68,17 +75,53 @@ def fetch_binance_via(host: str) -> dict[int, float]:
     return bars
 
 
+def compute_indicators(pairs):
+    """Given sorted [(tms, close), ...], return list of dicts with precomputed
+    ahr999 / gm / fit (or null for bars inside the first 200-day window)."""
+    n = len(pairs)
+    logs = [math.log(c) for _, c in pairs]
+    csum = [0.0]
+    for lv in logs:
+        csum.append(csum[-1] + lv)
+    out = []
+    for i, (t, c) in enumerate(pairs):
+        row = {"t": t, "c": round(c, 4)}
+        if i >= WINDOW - 1:
+            gm = math.exp((csum[i + 1] - csum[i + 1 - WINDOW]) / WINDOW)
+            day = datetime.fromtimestamp(t / 1000, tz=timezone.utc).date()
+            age = (day - GENESIS).days
+            fit = 10 ** (SLOPE * math.log10(age) - INTERCEPT)
+            ahr = (c / gm) * (c / fit)
+            row["gm"]  = round(gm, 2)
+            row["fit"] = round(fit, 2)
+            row["ahr"] = round(ahr, 6)
+        out.append(row)
+    return out
+
+
 def main() -> int:
     bars: dict[int, float] = {}
+
+    # 1. Historical static file (pre-Binance, 2010-07 → 2017-08). Read only.
+    if os.path.exists(HIST):
+        try:
+            hist = json.load(open(HIST))
+            for b in hist.get("bars", []):
+                bars[int(b["t"])] = float(b["c"])
+            print(f"historical loaded: {len(bars):,} rows from data/btc_historical.json")
+        except Exception as e:
+            print(f"warn: cannot read historical: {e}", file=sys.stderr)
+
+    # 2. Binance (fresh, Binance wins on any overlap with historical).
     host_used = None
     errors: list[str] = []
     for host in BINANCE_HOSTS:
         try:
             b = fetch_binance_via(host)
             if b:
-                bars = b
+                bars.update(b)
                 host_used = host
-                print(f"source: {host}  rows fetched: {len(bars):,}")
+                print(f"binance: {host}  rows fetched: {len(b):,}")
                 break
         except urllib.error.HTTPError as e:
             errors.append(f"{host}: HTTP {e.code}")
@@ -88,14 +131,18 @@ def main() -> int:
             print(f"skip {host}: {e}", file=sys.stderr)
 
     if not bars:
-        print("ERROR: all Binance hosts failed -> " + " | ".join(errors), file=sys.stderr)
+        print("ERROR: no data. Binance errors: " + " | ".join(errors), file=sys.stderr)
         return 1
+    if not host_used:
+        print("WARN: no fresh Binance data; using historical only.", file=sys.stderr)
 
     ordered = sorted(bars.items())
+    rows = compute_indicators(ordered)
     payload = {
         "updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "source": f"Binance BTCUSDT daily klines ({host_used})",
-        "bars": [{"t": t, "c": c} for t, c in ordered],
+        "source": (f"Binance BTCUSDT daily klines ({host_used})" if host_used
+                   else "Coin Metrics historical (Binance unavailable)"),
+        "bars": rows,
     }
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
@@ -104,7 +151,9 @@ def main() -> int:
 
     first_d = datetime.fromtimestamp(ordered[0][0] / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
     last_d  = datetime.fromtimestamp(ordered[-1][0] / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
-    print(f"OK  rows={len(ordered):,}  first={first_d}  last={last_d}  lastClose=${ordered[-1][1]:,.2f}")
+    last = rows[-1]
+    print(f"OK  rows={len(rows):,}  first={first_d}  last={last_d}  "
+          f"lastClose=${last['c']:,.2f}  ahr999={last.get('ahr','n/a')}")
     return 0
 
 

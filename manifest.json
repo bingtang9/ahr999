@@ -1,0 +1,25 @@
+{
+  "name": "比特币 Ahr999 指标",
+  "short_name": "ahr999",
+  "description": "比特币 ahr999 囤币指标 · 2026 新参数 · 数据每日自动更新",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0e13",
+  "theme_color": "#0b0e13",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

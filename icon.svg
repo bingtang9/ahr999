@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#121722"/>
+  <!-- Letter A in blue -->
+  <path d="M120 400 L220 140 L320 400 M152 320 L288 320"
+        stroke="#60a5fa" stroke-width="34" fill="none"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Digit 9 in orange -->
+  <path d="M364 168 Q364 134 394 134 Q424 134 424 168 L424 208 Q424 238 394 238 Q364 238 364 208 L364 168 Z M424 204 L424 400"
+        stroke="#f59e0b" stroke-width="30" fill="none"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
