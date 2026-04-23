@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Reference copy of the launchd agent installed at:
+       ~/Library/LaunchAgents/com.bingtang9.ahr999.plist
+
+     Install / reload:
+       cp scripts/com.bingtang9.ahr999.plist ~/Library/LaunchAgents/
+       launchctl unload ~/Library/LaunchAgents/com.bingtang9.ahr999.plist 2>/dev/null
+       launchctl load   ~/Library/LaunchAgents/com.bingtang9.ahr999.plist
+     Run once on demand:
+       launchctl start com.bingtang9.ahr999
+     Status:
+       launchctl list | grep ahr999
+     Uninstall:
+       launchctl unload ~/Library/LaunchAgents/com.bingtang9.ahr999.plist
+       rm ~/Library/LaunchAgents/com.bingtang9.ahr999.plist
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.bingtang9.ahr999</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/longxia/codeSpace/ahr999/scripts/update_and_push.sh</string>
+    </array>
+
+    <!-- Fires at 08:18 local time. Unlike cron, launchd auto-catches-up:
+         if the Mac is asleep/off at 08:18, the job runs as soon as it wakes. -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>8</integer>
+        <key>Minute</key>
+        <integer>18</integer>
+    </dict>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>/Users/longxia</string>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/longxia/codeSpace/ahr999</string>
+
+    <key>StandardOutPath</key>
+    <string>/Users/longxia/codeSpace/ahr999/logs/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/longxia/codeSpace/ahr999/logs/launchd.err.log</string>
+
+    <key>AbandonProcessGroup</key>
+    <false/>
+    <key>KeepAlive</key>
+    <false/>
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
