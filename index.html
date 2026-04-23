@@ -168,11 +168,11 @@
     <div class="card-head">
       <h2>Ahr999 历史曲线</h2>
       <div class="legend">
-        <span><span class="swatch" style="background:var(--price)"></span>BTC 价格 (左轴)</span>
-        <span><span class="swatch" style="background:var(--accent)"></span>ahr999 (右轴)</span>
-        <span><span class="swatch" style="background:rgba(34,197,94,.5)"></span>抄底 &lt; 0.45</span>
-        <span><span class="swatch" style="background:rgba(234,179,8,.5)"></span>定投 0.45 – 1.2</span>
-        <span><span class="swatch" style="background:rgba(239,68,68,.5)"></span>停止定投 ≥ 1.2</span>
+        <span><span class="swatch" style="background:#cbd5e1"></span>200 日定投成本</span>
+        <span><span class="swatch" style="background:var(--price)"></span>BTC 价格</span>
+        <span><span class="swatch" style="background:var(--accent)"></span>ahr999 囤币指标</span>
+        <span><span class="swatch" style="background:#ec4899"></span>抄底线 0.45</span>
+        <span><span class="swatch" style="background:#22c55e"></span>定投线 1.2</span>
       </div>
     </div>
     <div class="chart-wrap"><canvas id="chart"></canvas></div>
@@ -326,6 +326,7 @@ function renderChart() {
   const labels = data.map(s => s.t);
   const ahrD = data.map(s => ({ x: s.t, y: s.ahr }));
   const prcD = data.map(s => ({ x: s.t, y: s.price }));
+  const gmD  = data.map(s => ({ x: s.t, y: s.gm }));
 
   const ctx = el("chart").getContext("2d");
   if (chart) chart.destroy();
@@ -335,14 +336,22 @@ function renderChart() {
       labels,
       datasets: [
         {
-          label: "BTC 价格", data: prcD, yAxisID: "y",
-          borderColor: "#f59e0b", backgroundColor: "transparent",
-          borderWidth: 1.1, pointRadius: 0, tension: 0,
+          label: "ahr999 囤币指标", data: ahrD, yAxisID: "y",
+          borderColor: "#60a5fa", backgroundColor: "rgba(96,165,250,0.18)",
+          borderWidth: 1.4, pointRadius: 0, tension: 0, fill: "origin",
+          order: 3,
         },
         {
-          label: "ahr999", data: ahrD, yAxisID: "y2",
-          borderColor: "#60a5fa", backgroundColor: "rgba(96,165,250,0.08)",
-          borderWidth: 1.8, pointRadius: 0, tension: 0,
+          label: "200 日定投成本", data: gmD, yAxisID: "y2",
+          borderColor: "#cbd5e1", backgroundColor: "transparent",
+          borderWidth: 1.1, pointRadius: 0, tension: 0,
+          order: 1,
+        },
+        {
+          label: "BTC 价格", data: prcD, yAxisID: "y2",
+          borderColor: "#f59e0b", backgroundColor: "transparent",
+          borderWidth: 1.1, pointRadius: 0, tension: 0,
+          order: 2,
         },
       ],
     },
@@ -357,11 +366,12 @@ function renderChart() {
           callbacks: {
             title: (arr) => fmtDate(arr[0].parsed.x),
             label(c) {
-              if (c.dataset.label === "ahr999") {
-                const v = c.parsed.y;
+              const v = c.parsed.y;
+              if (c.dataset.label.startsWith("ahr999"))
                 return ` ahr999: ${v.toFixed(3)}  [${zoneOf(v)}]`;
-              }
-              return ` BTC: ${fmt$(c.parsed.y)}`;
+              if (c.dataset.label.startsWith("200"))
+                return ` 200日成本: ${fmt$(v)}`;
+              return ` BTC: ${fmt$(v)}`;
             },
           },
         },
@@ -374,62 +384,53 @@ function renderChart() {
           grid: { color: "rgba(255,255,255,0.04)" },
         },
         y: {
+          // LEFT: ahr999 scale
           type: "logarithmic", position: "left",
-          min: 1_000, max: 1_000_000,
+          min: 0.1, max: 100,
           ticks: {
-            color: "#f59e0b",
-            autoSkip: false,
-            callback: (v) => [
-              1_000, 2_000, 5_000,
-              10_000, 20_000, 50_000,
-              100_000, 200_000, 500_000,
-              1_000_000,
-            ].includes(v) ? fmt$(v) : "",
+            color: "#9ca3af", autoSkip: false,
+            callback: (v) => [0.1, 1, 10, 100].includes(v) ? (v === 0.1 ? "0.1000" : String(v)) : "",
           },
           grid: { color: "rgba(255,255,255,0.04)" },
-          title: { display: true, text: "BTC 价格 (USD)", color: "#f59e0b", font: { size: 11 } },
         },
         y2: {
+          // RIGHT: BTC price in USD, tick labels in CN units ($1 $10 $100 $1000 $1万 $10万 $100万)
           type: "logarithmic", position: "right",
-          min: 0.1, max: 10,
+          min: 1, max: 1_000_000,
           ticks: {
-            color: "#60a5fa",
-            autoSkip: false,
-            callback: (v) => [0.1, 0.2, 0.45, 1, 1.2, 2, 5, 10].includes(v) ? v : "",
+            color: "#9ca3af", autoSkip: false,
+            callback: (v) => {
+              const map = {
+                1: "$1", 10: "$10", 100: "$100", 1000: "$1000",
+                10000: "$1万", 100000: "$10万", 1000000: "$100万",
+              };
+              return map[v] || "";
+            },
           },
           grid: { display: false },
-          title: { display: true, text: "ahr999", color: "#60a5fa", font: { size: 11 } },
         },
       },
     },
     plugins: [{
-      id: "zones",
-      beforeDraw(c) {
+      id: "thresholds",
+      afterDatasetsDraw(c) {
         const { ctx, chartArea, scales } = c;
         if (!chartArea) return;
-        // Zone bands are tied to the ahr999 axis, which is now y2 (right).
-        const y = scales.y2;
-        const bands = [
-          { from: 0.01,  to: 0.45, fill: "rgba(34, 197, 94, 0.09)" },
-          { from: 0.45,  to: 1.20, fill: "rgba(234, 179, 8, 0.09)" },
-          { from: 1.20,  to: 100,  fill: "rgba(239, 68, 68, 0.09)" },
+        const y = scales.y;  // ahr999 is on the left axis now
+        const lines = [
+          { v: 0.45, col: "#ec4899", label: "抄底线" },
+          { v: 1.20, col: "#22c55e", label: "定投线" },
         ];
         ctx.save();
-        bands.forEach(b => {
-          const yTop = y.getPixelForValue(b.to);
-          const yBot = y.getPixelForValue(b.from);
-          ctx.fillStyle = b.fill;
-          ctx.fillRect(chartArea.left, yTop, chartArea.right - chartArea.left, yBot - yTop);
-        });
-        [[0.45, "rgba(34,197,94,.55)"], [1.2, "rgba(239,68,68,.55)"]].forEach(([v, col]) => {
+        ctx.lineWidth = 1.2;
+        lines.forEach(({ v, col }) => {
+          const yy = y.getPixelForValue(v);
           ctx.strokeStyle = col;
-          ctx.setLineDash([4, 4]);
           ctx.beginPath();
-          ctx.moveTo(chartArea.left, y.getPixelForValue(v));
-          ctx.lineTo(chartArea.right, y.getPixelForValue(v));
+          ctx.moveTo(chartArea.left, yy);
+          ctx.lineTo(chartArea.right, yy);
           ctx.stroke();
         });
-        ctx.setLineDash([]);
         ctx.restore();
       },
     }],
