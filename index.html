@@ -55,7 +55,41 @@
     background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
     padding: 12px 14px;
   }
-  .stat .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+  .stat .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; display: flex; align-items: center; gap: 5px; }
+
+  /* Hover help icon */
+  .help {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 1px solid var(--muted); color: var(--muted);
+    font-size: 10px; font-weight: 600; cursor: help;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    position: relative; text-transform: none; letter-spacing: 0;
+  }
+  .help::before { content: "?"; line-height: 1; }
+  .help:hover, .help:focus-visible { color: var(--ink); border-color: var(--ink); }
+  .help .tip {
+    position: absolute; bottom: calc(100% + 8px); left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg); border: 1px solid var(--border);
+    padding: 9px 11px; border-radius: 6px;
+    color: var(--ink-2); font-size: 12px; font-weight: 400;
+    width: 240px; text-align: left; white-space: normal;
+    line-height: 1.5; letter-spacing: 0;
+    opacity: 0; pointer-events: none; transition: opacity 0.15s;
+    z-index: 20; box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+  }
+  .help .tip::after {
+    content: ""; position: absolute; top: 100%; left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent; border-top-color: var(--border);
+  }
+  .help:hover .tip, .help:focus-visible .tip { opacity: 1; }
+  /* On small cards near the left edge, nudge the tip so it doesn't clip. */
+  .stat:first-child .help .tip { left: 0; transform: none; }
+  .stat:first-child .help .tip::after { left: 10px; transform: none; }
+  .stat:last-child  .help .tip { left: auto; right: 0; transform: none; }
+  .stat:last-child  .help .tip::after { left: auto; right: 10px; transform: none; }
   .stat .value { font-size: 22px; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
   .stat .hint  { font-size: 11px; color: var(--ink-2); margin-top: 4px; }
   .zone-抄底 { color: var(--green); }
@@ -176,22 +210,30 @@
 
   <div class="stats">
     <div class="stat">
-      <div class="label">BTC 价格</div>
+      <div class="label">BTC 价格
+        <span class="help" tabindex="0"><span class="tip">当前 Binance BTCUSDT 实时价，每 60 秒刷新一次。</span></span>
+      </div>
       <div class="value" id="price">—</div>
       <div class="hint" id="price-ts">—</div>
     </div>
     <div class="stat">
-      <div class="label">ahr999 囤币指标</div>
+      <div class="label">ahr999 囤币指标
+        <span class="help" tabindex="0"><span class="tip">短期项 (现价 / 200日成本) × 长期项 (现价 / 拟合公允值)。小于 0.45 抄底，0.45–1.2 定投，大于 1.2 停止定投。</span></span>
+      </div>
       <div class="value" id="ahr">—</div>
       <div class="hint" id="zone">—</div>
     </div>
     <div class="stat">
-      <div class="label">拟合公允值</div>
+      <div class="label">拟合公允值
+        <span class="help" tabindex="0"><span class="tip">BTC 长期趋势线上的价格，由全部历史价格对"币龄"做幂律回归得到 (10^(5.64·log₁₀(币龄天数) − 16.33))。现价低于它代表 BTC 相对历史趋势被低估。</span></span>
+      </div>
       <div class="value" id="fit">—</div>
       <div class="hint" id="fit-diff">—</div>
     </div>
     <div class="stat">
-      <div class="label">200 日定投成本</div>
+      <div class="label">200 日定投成本
+        <span class="help" tabindex="0"><span class="tip">过去 200 天 BTC 价格的几何均值，近似"过去 200 天每天等额定投的平均买入价"。</span></span>
+      </div>
       <div class="value" id="gm">—</div>
       <div class="hint" id="gm-diff">—</div>
     </div>
