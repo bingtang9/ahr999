@@ -57,15 +57,17 @@ print(f"  R²            : {r2:.4f}")
 print(f"  文章值对比    : slope 5.64  /  c 16.33  /  R² 0.96")
 print()
 
-# --- 2. Pre-2018 subset (what the ORIGINAL author had in 2018) ---
-mask_2018 = dates < date(2018, 1, 1)
+# --- 2. Through-end-of-2018 subset (best match for original author's 5.84/17.01).
+# A 2018-01-01 cutoff gives ~5.73/16.64 — off from the published 5.84/17.01.
+# Cutting at 2019-01-01 (includes all of 2018) gives ~5.87/17.08 — matches.
+mask_2018 = dates < date(2019, 1, 1)
 s0, b0, r20, _ = fit(x[mask_2018], y[mask_2018])
-print("=== 拟合 2: 2018 年之前 (还原旧作者当年拟合) ===")
+print("=== 拟合 2: 截止到 2018-12-31 (还原原作者当年拟合) ===")
 print(f"  样本数        : {mask_2018.sum():,}")
 print(f"  斜率 slope    : {s0:.4f}")
 print(f"  c             : {-b0:.4f}")
 print(f"  R²            : {r20:.4f}")
-print(f"  原版 ahr999   : slope 5.84  /  c 17.01")
+print(f"  原版 ahr999   : slope 5.84  /  c 17.01  (近似一致)")
 print()
 
 # --- 3. The 2026 article's claimed parameters → what R² do THEY actually give?
