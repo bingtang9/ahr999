@@ -332,12 +332,12 @@
 <div class="wrap">
   <div class="page-head">
     <h1>比特币 Ahr999 指标
-      <span class="help help-lg" tabindex="0"><span class="tip tip-wide">
+      <span class="help help-lg" tabindex="0"><span class="tip tip-wide" id="formula-tip">
         <strong>ahr999 公式</strong><br>
         <code>ahr999 = (现价 / 200日定投成本) × (现价 / 拟合估值)</code><br>
-        <strong>拟合估值</strong><br>
-        <code>10^(5.64·log10(币龄天数) − 16.33)</code><br>
-        <span style="color:var(--muted); font-size:11px;">币龄自 2009-01-03 创世块起算 · 参数来自「定投大饼」2026 重拟，R²=0.96</span>
+        <strong>拟合估值（本项目自算）</strong><br>
+        <code id="formula-fit">10^(slope·log10(币龄天数) − c)</code><br>
+        <span style="color:var(--muted); font-size:11px;" id="formula-ref">参数加载中…</span>
       </span></span>
     </h1>
     <div class="status" id="status"><span class="dot"></span>初始化…</div>
@@ -463,8 +463,17 @@
 <script>
 const GENESIS_MS = Date.UTC(2009, 0, 3);
 const WINDOW = 200;
-const SLOPE = 5.64;
-const INTERCEPT = 16.33;
+// Fit parameters are live-recomputed by the updater from the full BTC history
+// (OLS on log10(price) ~ log10(coin_age_days)). Initialise with a sensible
+// fallback in case the JSON load fails; the real values come from j.params.
+let SLOPE = 5.68;
+let INTERCEPT = 16.47;
+let FIT_R2 = 0.96;
+let FIT_N = 0;
+// Reference values from 定投大饼 2026 article — shown in the tooltip for
+// cross-validation, not used to compute anything.
+const REF_SLOPE = 5.64;
+const REF_INTERCEPT = 16.33;
 const PAGE_LIMIT = 1000;            // Binance single-request cap
 const HISTORY_START_MS = Date.UTC(2017, 7, 1);  // BTCUSDT listed 2017-08-17
 const REFRESH_MS = 60_000;
@@ -498,6 +507,12 @@ async function fetchKlines() {
     if (r.ok) {
       const j = await r.json();
       dataStamp = j.updated || null;
+      if (j.params) {
+        if (typeof j.params.slope     === "number") SLOPE     = j.params.slope;
+        if (typeof j.params.intercept === "number") INTERCEPT = j.params.intercept;
+        if (typeof j.params.r2        === "number") FIT_R2    = j.params.r2;
+        if (typeof j.params.sample_size === "number") FIT_N   = j.params.sample_size;
+      }
       const raw = j.bars || [];
       if (raw.length > WINDOW) {
         return raw.map(b => {
@@ -952,6 +967,19 @@ function removeSkeletons() {
   el("chartWrap")?.classList.remove("loading");
 }
 
+function updateFormulaTip() {
+  const fitEl = el("formula-fit");
+  const refEl = el("formula-ref");
+  if (!fitEl || !refEl) return;
+  fitEl.textContent = `10^(${SLOPE.toFixed(4)}·log10(币龄天数) − ${INTERCEPT.toFixed(4)})`;
+  const dSlope = (SLOPE - REF_SLOPE).toFixed(4);
+  const dC     = (INTERCEPT - REF_INTERCEPT).toFixed(4);
+  refEl.innerHTML =
+    `R²=${FIT_R2.toFixed(4)} · 样本 ${FIT_N.toLocaleString()} 天<br>` +
+    `对照（定投大饼 2026）：slope=${REF_SLOPE} / c=${REF_INTERCEPT} · ` +
+    `差 ${dSlope >= 0 ? "+" : ""}${dSlope} / ${dC >= 0 ? "+" : ""}${dC}`;
+}
+
 function updateCards(latest) {
   removeSkeletons();
   el("price").textContent = fmt$2(latest.price);
@@ -1013,6 +1041,7 @@ async function bootstrap() {
     renderTable(fullSeries);
     updateCards(fullSeries[fullSeries.length - 1]);
     updateDistribution();
+    updateFormulaTip();
     checkDataFreshness();
     const stamp = dataStamp ? ` · 数据快照 ${dataStamp.slice(0,10)}` : "";
     setStatus("已加载 · " + new Date().toLocaleTimeString("zh-CN", { hour12: false }) + stamp, "ok");
