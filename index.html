@@ -129,13 +129,35 @@
   .zone-pill.zone-定投     { background: rgba(234,179,8,0.15);  color: var(--yellow); border-color: rgba(234,179,8,0.35); }
   .zone-pill.zone-停止定投 { background: rgba(239,68,68,0.15);  color: var(--red);    border-color: rgba(239,68,68,0.35); }
 
-  /* Historical zone-distribution subtitle line */
-  .dist-line { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin-top: 4px; }
-  .dist-title { color: var(--muted); margin-right: 2px; }
-  .dist-item { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
-  .dist-item .dot { display:inline-block; width:8px; height:8px; border-radius:50%; }
-  .dist-days { font-weight: 600; color: var(--ink); margin-left: 2px; }
-  .dist-count { color: var(--muted); font-size: 11px; }
+  /* Historical zone-distribution panel (below the brush / range tabs) */
+  .dist-panel {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    margin-top: 22px; padding: 8px 0 4px;
+    border-top: 1px solid var(--border);
+  }
+  .dist-cell {
+    padding: 14px 22px;
+    border-right: 1px solid var(--border);
+    position: relative;
+  }
+  .dist-cell:last-child { border-right: 0; }
+  .dist-cell-label { font-size: 12.5px; color: var(--ink-2); margin-bottom: 8px; }
+  .dist-cell-value { font-size: 24px; font-weight: 700; color: var(--ink);
+    font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  /* Accent bar on the left of each cell, colored by zone */
+  .dist-cell::before {
+    content: ""; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    width: 3px; height: 32px; border-radius: 2px;
+  }
+  .dist-cell.zone-抄底::before     { background: var(--green); }
+  .dist-cell.zone-定投::before     { background: var(--yellow); }
+  .dist-cell.zone-停止定投::before { background: var(--red); }
+  @media (max-width: 640px) {
+    .dist-panel { grid-template-columns: 1fr; }
+    .dist-cell { border-right: 0; border-bottom: 1px solid var(--border); padding: 12px 18px; }
+    .dist-cell:last-child { border-bottom: 0; }
+    .dist-cell-value { font-size: 20px; }
+  }
 
   /* Chart card */
   .card {
@@ -344,22 +366,6 @@
     </h1>
     <div class="status" id="status"><span class="dot"></span>初始化…</div>
   </div>
-  <div class="subtitle dist-line" id="dist-line">
-    <span class="dist-title">历史时间分布</span>
-    <span class="dist-item zone-停止定投">
-      <span class="dot" style="background:var(--red)"></span>ahr999 &gt; 1.2
-      <span class="dist-days" id="dist-c">—</span>
-    </span>
-    <span class="dist-item zone-定投">
-      <span class="dot" style="background:var(--yellow)"></span>0.45 – 1.2
-      <span class="dist-days" id="dist-b">—</span>
-    </span>
-    <span class="dist-item zone-抄底">
-      <span class="dot" style="background:var(--green)"></span>ahr999 &lt; 0.45
-      <span class="dist-days" id="dist-a">—</span>
-    </span>
-    <span class="dist-count" id="dist-total"></span>
-  </div>
 
   <div class="stats">
     <div class="stat">
@@ -430,6 +436,21 @@
       <button data-r="1Y">1Y</button>
       <button data-r="3Y">3Y</button>
       <button data-r="ALL" class="active">全部</button>
+    </div>
+
+    <div class="dist-panel">
+      <div class="dist-cell zone-停止定投">
+        <div class="dist-cell-label">ahr999 囤币指标 &gt; 1.2</div>
+        <div class="dist-cell-value" id="dist-c">—</div>
+      </div>
+      <div class="dist-cell zone-定投">
+        <div class="dist-cell-label">ahr999 囤币指标 0.45 – 1.2</div>
+        <div class="dist-cell-value" id="dist-b">—</div>
+      </div>
+      <div class="dist-cell zone-抄底">
+        <div class="dist-cell-label">ahr999 囤币指标 &lt; 0.45</div>
+        <div class="dist-cell-value" id="dist-a">—</div>
+      </div>
     </div>
   </div>
 
@@ -1009,12 +1030,10 @@ function updateDistribution() {
   if (!fullSeries.length) return;
   const counts = { "抄底": 0, "定投": 0, "停止定投": 0 };
   fullSeries.forEach(s => counts[zoneOf(s.ahr)]++);
-  const total = fullSeries.length;
-  const fmt = (n) => `${n.toLocaleString()} 天 (${(n / total * 100).toFixed(1)}%)`;
+  const fmt = (n) => `${n.toLocaleString()} 天`;
   el("dist-a").textContent = fmt(counts["抄底"]);
   el("dist-b").textContent = fmt(counts["定投"]);
   el("dist-c").textContent = fmt(counts["停止定投"]);
-  el("dist-total").textContent = `共 ${total.toLocaleString()} 天`;
 }
 
 function setStatus(msg, cls) {
