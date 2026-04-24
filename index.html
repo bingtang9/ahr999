@@ -253,6 +253,16 @@
   footer { color: var(--muted); font-size: 11.5px; margin-top: 18px; line-height: 1.9; }
   footer code { background: var(--bg-2); border: 1px solid var(--border);
     padding: 1px 6px; border-radius: 3px; color: var(--ink-2); }
+  .notice {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.25);
+    padding: 6px 12px; border-radius: 6px; margin: 2px 0 8px;
+    color: var(--ink-2); font-size: 12px; line-height: 1.6;
+  }
+  .notice-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--yellow); box-shadow: 0 0 6px var(--yellow); flex: none; }
+  .notice code { background: var(--bg); border-color: var(--yellow);
+    color: var(--yellow); padding: 1px 6px; border-radius: 3px; }
 
   /* WeChat-id copy button */
   .wx-copy {
@@ -487,6 +497,10 @@
         <code>bing_tang_cheng</code>
         <span class="wx-copy-ico" aria-hidden="true">⧉</span>
       </button>
+    </div>
+    <div class="notice">
+      <span class="notice-dot"></span>
+      系统刚上线，如有问题或建议，欢迎加微信 <code>bing_tang_cheng</code> 私信交流。
     </div>
     数据来源：Binance BTCUSDT 日线 · 每 60 秒拉取最新 ticker 更新今日值 ·
     拟合参数由全量历史自回归得出（每 90 天重拟），币龄自 2009-01-03 创世块起算。
