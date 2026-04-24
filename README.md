@@ -2,7 +2,7 @@
 
 比特币 ahr999 囤币指标的实时查看页面，使用 **2026 年重拟参数** (slope = 5.64, intercept = 16.33, R² = 0.96)，数据每天自动更新。
 
-> **比特币航海家 出品** · 微信号 `bing_tang_cheng`
+> **比特航海家 出品** · 微信号 `bing_tang_cheng`
 
 🌐 在线访问：<https://bingtang9.github.io/ahr999/>
 
