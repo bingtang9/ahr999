@@ -8,7 +8,7 @@
 <meta name="description" content="比特币 ahr999 囤币指标实时曲线（2026 新参数，R²=0.96）。数据源 Binance，每日自动更新。" />
 <meta property="og:type" content="website" />
 <meta property="og:title" content="比特币 Ahr999 指标 · 2026 新参数" />
-<meta property="og:description" content="实时 ahr999 曲线，含拟合公允值 / 200日定投成本 / 区间信号，历史回溯至 2011。" />
+<meta property="og:description" content="实时 ahr999 曲线，含拟合估值 / 200日定投成本 / 区间信号，历史回溯至 2011。" />
 <meta property="og:url" content="https://bingtang9.github.io/ahr999/" />
 <meta name="twitter:card" content="summary" />
 <link rel="manifest" href="./manifest.json" />
@@ -319,7 +319,7 @@
   </div>
   <div class="subtitle">
     公式 <code style="background:transparent;border:0;padding:0;color:var(--ink-2)">
-    ahr999 = (现价 / 200日定投成本) × (现价 / 拟合公允值)</code> ·
+    ahr999 = (现价 / 200日定投成本) × (现价 / 拟合估值)</code> ·
     拟合 <code style="background:transparent;border:0;padding:0;color:var(--ink-2)">10^(5.64·log10(币龄天数) − 16.33)</code>
   </div>
   <div class="subtitle dist-line" id="dist-line">
@@ -340,13 +340,13 @@
     </div>
     <div class="stat">
       <div class="label">ahr999 囤币指标
-        <span class="help" tabindex="0"><span class="tip">短期项 (现价 / 200日成本) × 长期项 (现价 / 拟合公允值)。小于 0.45 抄底，0.45–1.2 定投，大于 1.2 停止定投。</span></span>
+        <span class="help" tabindex="0"><span class="tip">短期项 (现价 / 200日成本) × 长期项 (现价 / 拟合估值)。小于 0.45 抄底，0.45–1.2 定投，大于 1.2 停止定投。</span></span>
       </div>
       <div class="value skeleton" id="ahr">— — —</div>
       <div class="zone-pill skeleton" id="zone">— — —</div>
     </div>
     <div class="stat">
-      <div class="label">拟合公允值
+      <div class="label">拟合估值
         <span class="help" tabindex="0"><span class="tip">BTC 长期趋势线上的价格，由全部历史价格对"币龄"做幂律回归得到 (10^(5.64·log₁₀(币龄天数) − 16.33))。现价低于它代表 BTC 相对历史趋势被低估。</span></span>
       </div>
       <div class="value skeleton" id="fit">— — —</div>
@@ -415,7 +415,7 @@
             <th>ahr999 囤币指标</th>
             <th>BTC 价格</th>
             <th>200 日定投成本</th>
-            <th>拟合公允值</th>
+            <th>拟合估值</th>
             <th>区间</th>
           </tr>
         </thead>
@@ -945,7 +945,7 @@ function updateCards(latest) {
   zEl.className = "zone-pill zone-" + z;
   el("fit").textContent = fmt$(latest.fit);
   const fitDiff = (latest.price - latest.fit) / latest.fit;
-  el("fit-diff").textContent = "现价 vs 公允值 " + fmtPct(fitDiff);
+  el("fit-diff").textContent = "现价 vs 估值 " + fmtPct(fitDiff);
   el("gm").textContent = fmt$(latest.gm);
   const gmDiff = (latest.price - latest.gm) / latest.gm;
   el("gm-diff").textContent = "现价 vs 成本 " + fmtPct(gmDiff);
