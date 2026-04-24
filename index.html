@@ -192,6 +192,9 @@
     border-bottom: 1px solid var(--border); white-space: nowrap;
   }
   thead th:first-child { text-align: left; }
+  /* Shrink the date column to its content — was eating ~1/6 of full table width. */
+  thead th:first-child,
+  tbody td:first-child { width: 1%; white-space: nowrap; padding-right: 18px; }
   tbody td {
     padding: 8px 14px; border-bottom: 1px solid var(--border);
     text-align: right; font-variant-numeric: tabular-nums;

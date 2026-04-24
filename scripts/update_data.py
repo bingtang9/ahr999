@@ -138,20 +138,34 @@ def main() -> int:
 
     ordered = sorted(bars.items())
     rows = compute_indicators(ordered)
+
+    first_d = datetime.fromtimestamp(ordered[0][0] / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+    last_d  = datetime.fromtimestamp(ordered[-1][0] / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+    last = rows[-1]
+
+    # Short-circuit: if the bars array is byte-identical to what's already on disk,
+    # don't rewrite the file. Downstream `git status --porcelain` sees no diff and
+    # the daily-update commit is skipped — keeps git log clean when nothing moved.
+    if os.path.exists(OUT):
+        try:
+            existing = json.load(open(OUT))
+            if existing.get("bars") == rows:
+                print(f"no change (bars identical)  rows={len(rows):,}  last={last_d}  "
+                      f"lastClose=${last['c']:,.2f}  ahr999={last.get('ahr','n/a')}")
+                return 0
+        except Exception as e:
+            print(f"warn: could not diff existing output ({e}); rewriting", file=sys.stderr)
+
     payload = {
         "updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "source": (f"Binance BTCUSDT daily klines ({host_used})" if host_used
                    else "Coin Metrics historical (Binance unavailable)"),
         "bars": rows,
     }
-
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w") as f:
         json.dump(payload, f, separators=(",", ":"))
 
-    first_d = datetime.fromtimestamp(ordered[0][0] / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
-    last_d  = datetime.fromtimestamp(ordered[-1][0] / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
-    last = rows[-1]
     print(f"OK  rows={len(rows):,}  first={first_d}  last={last_d}  "
           f"lastClose=${last['c']:,.2f}  ahr999={last.get('ahr','n/a')}")
     return 0
