@@ -15,8 +15,8 @@
 **公式**
 
 ```
-ahr999 = (现价 / 200 日定投成本) × (现价 / 拟合估值)
-拟合估值 = 10 ^ (slope · log10(币龄天数) − c)
+ahr999 = (现价 / 200 日定投成本) × (现价 / 指数增长估值)
+指数增长估值 = 10 ^ (slope · log10(币龄天数) − c)
 ```
 
 币龄从比特币创世块（2009-01-03）起算。`slope` 和 `c` **不是写死的常数**——`scripts/update_data.py` 每次运行时检查：如果上次拟合已超过 90 天（`REFIT_INTERVAL_DAYS`），就在全量历史上重新做一次 OLS log-log 线性回归，把新的 `slope / c / R² / fit_date` 写进 `data/btc_daily.json` 的 `params` 字段；未超期则复用。

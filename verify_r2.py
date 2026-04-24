@@ -81,4 +81,4 @@ print(f"  R²(文章参数)  : {r2_article:.4f}")
 today_age = (date(2026, 4, 23) - GENESIS).days
 fit_today = 10 ** (s * np.log10(today_age) - c)
 print()
-print(f"=== 今日拟合估值 (我重拟) : ${fit_today:,.0f}   BTC收盘 ${prices[-1]:,.0f} ===")
+print(f"=== 今日指数增长估值 (我重拟) : ${fit_today:,.0f}   BTC收盘 ${prices[-1]:,.0f} ===")

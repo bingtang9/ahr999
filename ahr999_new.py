@@ -92,7 +92,7 @@ ax1.legend(loc="upper left", fontsize=10)
 
 ax2 = ax1.twinx()
 ax2.plot(d, p, color="#e67e22", lw=0.9, alpha=0.55, label="BTC 价格")
-ax2.plot(d, f, color="#1f3a5f", lw=0.8, ls=":", alpha=0.55, label="新拟合估值")
+ax2.plot(d, f, color="#1f3a5f", lw=0.8, ls=":", alpha=0.55, label="新指数增长估值")
 ax2.set_yscale("log")
 ax2.set_ylabel("BTC / 拟合值 (USD, log)", color="#e67e22", fontsize=11)
 ax2.tick_params(axis="y", labelcolor="#e67e22")
