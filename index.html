@@ -36,15 +36,11 @@
     font: 14px/1.55 -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif; }
   a { color: var(--accent); text-decoration: none; }
 
-  /* Top bar */
-  .topbar {
-    height: 48px; background: var(--bg-2); border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; padding: 0 20px; gap: 18px;
-    position: sticky; top: 0; z-index: 10;
-  }
-  .brand { font-weight: 700; font-size: 15px; letter-spacing: .02em; }
-  .brand .tag { color: var(--muted); font-weight: 400; margin-left: 6px; font-size: 12px; }
-  .topbar .status { margin-left: auto; font-size: 12px; color: var(--muted); }
+  /* Page head */
+  .page-head { display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap; margin: 6px 0 12px; }
+  .page-head h1 { margin: 0; }
+  .status { font-size: 12px; color: var(--muted); }
   .status.ok { color: var(--green); }
   .status.err { color: var(--red); }
   .dot { display:inline-block; width:6px; height:6px; border-radius: 50%;
@@ -273,15 +269,6 @@
   tbody tr.zr-停止定投 td { background: rgba(239,68,68,0.05); }
   tbody tr:hover td  { background: rgba(96,165,250,0.08) !important; }
 
-  /* Share button in topbar */
-  .share-btn {
-    background: transparent; border: 1px solid var(--border); color: var(--ink-2);
-    font: inherit; font-size: 12px; padding: 5px 12px; border-radius: 6px;
-    cursor: pointer; margin-left: 10px; display: inline-flex; align-items: center; gap: 5px;
-  }
-  .share-btn:hover { color: var(--ink); border-color: var(--accent); }
-  @media (max-width: 760px) { .share-btn { padding: 4px 10px; font-size: 11.5px; } }
-
   @media (max-width: 760px) {
     .wrap { padding: 14px; }
     h1 { font-size: 18px; }
@@ -316,9 +303,7 @@
     thead th, tbody td { padding: 7px 10px; font-size: 12px; }
     thead th { font-size: 11px; }
 
-    .topbar { height: 44px; padding: 0 14px; }
-    .brand { font-size: 14px; }
-    .brand .tag { display: none; }
+    .page-head h1 { font-size: 18px; }
   }
   @media (max-width: 420px) {
     .range-tabs button { padding: 5px 8px; min-width: 32px; }
@@ -327,17 +312,14 @@
 </head>
 <body>
 
-<div class="topbar">
-  <div class="brand">Ahr999 Monitor <span class="tag">· 2026 新参数</span></div>
-  <div class="status" id="status"><span class="dot"></span>初始化…</div>
-  <button type="button" class="share-btn" id="shareBtn" title="分享链接">↗ 分享</button>
-</div>
-
 <div class="wrap">
-  <h1>比特币 Ahr999 指标</h1>
+  <div class="page-head">
+    <h1>比特币 Ahr999 指标</h1>
+    <div class="status" id="status"><span class="dot"></span>初始化…</div>
+  </div>
   <div class="subtitle">
     公式 <code style="background:transparent;border:0;padding:0;color:var(--ink-2)">
-    ahr999 = (现价 / 200日几何均值) × (现价 / 拟合公允值)</code> ·
+    ahr999 = (现价 / 200日定投成本) × (现价 / 拟合公允值)</code> ·
     拟合 <code style="background:transparent;border:0;padding:0;color:var(--ink-2)">10^(5.64·log10(币龄天数) − 16.33)</code>
   </div>
   <div class="subtitle dist-line" id="dist-line">
@@ -1187,21 +1169,6 @@ document.addEventListener("keydown", (e) => {
     syncHashFromBrush(null);
     e.preventDefault();
   }
-});
-
-// Share button: Web Share API if available, otherwise copy URL.
-el("shareBtn").addEventListener("click", async () => {
-  const url = location.href;
-  const title = "比特币 Ahr999 指标";
-  const text = "比特币 ahr999 囤币指标 · 2026 新参数";
-  try {
-    if (navigator.share) {
-      await navigator.share({ title, text, url });
-      return;
-    }
-  } catch (_) { /* user cancelled or unsupported */ }
-  const ok = await copyText(url);
-  showToast(ok ? "链接已复制，可粘贴到微信/朋友圈" : "复制失败", !ok);
 });
 
 // React to external hash changes (e.g. back/forward navigation).
