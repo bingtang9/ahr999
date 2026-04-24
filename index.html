@@ -256,9 +256,10 @@
   .notice {
     display: inline-flex; align-items: center; gap: 8px;
     background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.25);
-    padding: 6px 12px; border-radius: 6px; margin: 2px 0 8px;
-    color: var(--ink-2); font-size: 12px; line-height: 1.6;
+    padding: 7px 12px; border-radius: 6px; margin: 2px 0 8px;
+    color: var(--ink-2); font-size: 12.5px; line-height: 1.6;
   }
+  .notice strong { color: var(--ink); font-weight: 600; }
   .notice-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%;
     background: var(--yellow); box-shadow: 0 0 6px var(--yellow); flex: none; }
   .notice code { background: var(--bg); border-color: var(--yellow);
@@ -491,12 +492,9 @@
   </div>
 
   <footer>
-    <div style="color:var(--ink-2); font-weight:600; font-size:12.5px; margin-bottom:4px;">
-      比特航海家 出品
-    </div>
     <div class="notice">
       <span class="notice-dot"></span>
-      系统刚上线，如有问题或建议，欢迎加微信
+      <strong>比特航海家</strong> 出品 · 系统刚上线，如有问题或建议，欢迎加微信
       <button type="button" class="wx-copy" data-copy="bing_tang_cheng" title="点击复制微信号">
         <code>bing_tang_cheng</code>
         <span class="wx-copy-ico" aria-hidden="true">⧉</span>
