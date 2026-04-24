@@ -156,11 +156,16 @@
   .dist-cell.zone-抄底::before     { background: var(--green); }
   .dist-cell.zone-定投::before     { background: var(--yellow); }
   .dist-cell.zone-停止定投::before { background: var(--red); }
+  .dist-footer {
+    font-size: 11.5px; color: var(--muted); text-align: right;
+    padding: 6px 4px 0;
+  }
   @media (max-width: 640px) {
     .dist-panel { grid-template-columns: 1fr; }
     .dist-cell { border-right: 0; border-bottom: 1px solid var(--border); padding: 12px 18px; }
     .dist-cell:last-child { border-bottom: 0; }
     .dist-cell-value { font-size: 20px; }
+    .dist-footer { text-align: left; padding-left: 18px; }
   }
 
   /* Chart card */
@@ -467,6 +472,7 @@
         <div class="dist-cell-value" id="dist-a">—</div>
       </div>
     </div>
+    <div class="dist-footer" id="dist-total">—</div>
   </div>
 
   <div class="card">
@@ -1051,6 +1057,11 @@ function updateDistribution() {
   el("dist-a").textContent = fmt(counts["抄底"]);
   el("dist-b").textContent = fmt(counts["定投"]);
   el("dist-c").textContent = fmt(counts["停止定投"]);
+  const total = fullSeries.length;
+  const first = fmtDate(fullSeries[0].t);
+  const last  = fmtDate(fullSeries[fullSeries.length - 1].t);
+  el("dist-total").textContent =
+    `共 ${total.toLocaleString()} 天（${first} → ${last}，首次需 200 日窗口预热）`;
 }
 
 function setStatus(msg, cls) {
