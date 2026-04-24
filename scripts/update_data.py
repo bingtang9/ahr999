@@ -36,10 +36,6 @@ WINDOW = 200
 # from data/btc_daily.json and re-running the script.
 REFIT_INTERVAL_DAYS = 90
 
-# Reference values from 定投大饼 2026 refit article — kept ONLY for comparison.
-# The slope/intercept we actually use are self-computed from full history.
-REF_SLOPE, REF_INTERCEPT = 5.64, 16.33
-
 # Binance API hosts tried in order. All serve the same /api/v3/klines endpoint.
 BINANCE_HOSTS = [
     "api.binance.com",
@@ -213,8 +209,6 @@ def main() -> int:
         slope, intercept, r2, n_fit = compute_regression(ordered)
         fit_date_str = today.isoformat()
         print(f"fit: REFIT  slope={slope:.4f}  c={intercept:.4f}  R²={r2:.4f}  (n={n_fit:,})")
-        print(f"           ref (定投大饼 2026): slope={REF_SLOPE}  c={REF_INTERCEPT}  "
-              f"Δslope={slope-REF_SLOPE:+.4f}  Δc={intercept-REF_INTERCEPT:+.4f}")
 
     rows = compute_indicators(ordered, slope, intercept)
 
@@ -231,9 +225,6 @@ def main() -> int:
         "refit_every_days": REFIT_INTERVAL_DAYS,
         "window":          WINDOW,
         "genesis":         GENESIS.isoformat(),
-        "ref_slope":       REF_SLOPE,
-        "ref_intercept":   REF_INTERCEPT,
-        "ref_note":        "reference values from 定投大饼 2026 refit — not used for calculation",
     }
 
     # Short-circuit: same bars + same params on disk? skip write to avoid noise commits.

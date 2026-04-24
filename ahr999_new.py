@@ -1,6 +1,6 @@
 """Plot the new-parameter ahr999 curve on its own (clean version).
 
-New parameters (2026 refit per 定投大饼):
+New parameters (our 2026 refit):
   Fit(t) = 10 ** (5.64 * log10(age_days) - 16.33)
   age_days = (date(t) - 2009-01-03).days
   ahr999   = (P / GM200) * (P / Fit)

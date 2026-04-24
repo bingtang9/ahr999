@@ -1,4 +1,4 @@
-"""Compute and plot the ahr999 index — with 2026 refit per 定投大饼 article.
+"""Compute and plot the ahr999 index.
 
 Formula (general form):
   ahr999(t) = (P(t) / GM200(t)) * (P(t) / Fit(t))
@@ -158,7 +158,7 @@ ax1.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
 fig.autofmt_xdate()
 
 footer = ("公式: ahr999 = (价格 / 200日几何均值) × (价格 / 拟合值)    "
-          "新参数来源: 公众号『定投大饼』2026 重拟 (5.64 / 16.33, R²=0.96)")
+          "新参数来源: 自回归 (5.64 / 16.33, R²=0.96)")
 fig.text(0.5, 0.01, footer, ha="center", fontsize=8.5, color="#555")
 
 plt.tight_layout(rect=[0, 0.02, 1, 1])
