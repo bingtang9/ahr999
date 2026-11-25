@@ -13,6 +13,23 @@
 <meta name="twitter:card" content="summary" />
 <link rel="manifest" href="./manifest.json" />
 <meta name="theme-color" content="#0b0e13" />
+<script>
+const themeKey = "ahr999.theme";
+const systemTheme = matchMedia("(prefers-color-scheme: dark)");
+let themePreference = "system";
+try {
+  const saved = localStorage.getItem(themeKey);
+  if (saved === "light" || saved === "dark") themePreference = saved;
+} catch { /* Storage may be disabled. */ }
+
+function applyTheme() {
+  const theme = themePreference === "system"
+    ? (systemTheme.matches ? "dark" : "light")
+    : themePreference;
+  document.documentElement.dataset.theme = theme;
+}
+applyTheme();
+</script>
 <link rel="preload" href="./data/btc_daily.json" as="fetch" />
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
@@ -22,18 +39,46 @@
         async src="//gc.zgo.at/count.js"></script>
 <style>
   :root {
+    color-scheme: dark;
     --bg:       #0b0e13;
     --bg-2:     #121722;
     --panel:    #141a24;
     --border:   #1f2937;
     --ink:      #e6edf3;
     --ink-2:    #b8c1cc;
-    --muted:    #6e7681;
+    --muted:    #96a1b0;
     --green:    #22c55e;
     --yellow:   #eab308;
     --red:      #ef4444;
     --accent:   #60a5fa;
     --price:    #f59e0b;
+    --cost:     #cbd5e1;
+    --buy-line: #ec4899;
+    --grid:     #283242;
+    --chart-fill: rgba(96,165,250,0.18);
+    --brush-mask: rgba(11,14,19,0.68);
+    --on-accent: #0b0e13;
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg:       #f4f6fa;
+    --bg-2:     #edf1f6;
+    --panel:    #ffffff;
+    --border:   #ced6e0;
+    --ink:      #192538;
+    --ink-2:    #384a60;
+    --muted:    #536479;
+    --green:    #096336;
+    --yellow:   #765000;
+    --red:      #ad242d;
+    --accent:   #1a5eb3;
+    --price:    #a04b00;
+    --cost:     #576779;
+    --buy-line: #ab2675;
+    --grid:     #e2e7ee;
+    --chart-fill: rgba(26,94,179,0.12);
+    --brush-mask: rgba(244,246,250,0.65);
+    --on-accent: #ffffff;
   }
   * { box-sizing: border-box; }
   html, body { margin:0; padding:0; background:var(--bg); color:var(--ink);
@@ -44,6 +89,14 @@
   .page-head { display: flex; align-items: baseline; justify-content: space-between;
     gap: 12px; flex-wrap: wrap; margin: 6px 0 12px; }
   .page-head h1 { margin: 0; }
+  .page-head .status { margin-left: auto; }
+  .theme-control { display: inline-flex; align-items: center; gap: 6px;
+    color: var(--muted); font-size: 12px; }
+  .theme-control select { font: inherit; font-weight: 600; cursor: pointer;
+    min-height: 34px; padding: 4px 8px; border-radius: 6px;
+    color: var(--ink); background: var(--panel); border: 1px solid var(--border); }
+  .theme-control select:hover { border-color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .status { font-size: 12px; color: var(--muted); }
   .status.ok { color: var(--green); }
   .status.err { color: var(--red); }
@@ -182,7 +235,7 @@
     min-width: 44px;
   }
   .range-tabs button:hover { color: var(--ink); }
-  .range-tabs button.active { background: var(--accent); color: #0b0e13; font-weight: 600; }
+  .range-tabs button.active { background: var(--accent); color: var(--on-accent); font-weight: 600; }
 
   .chart-wrap { height: 480px; }
 
@@ -199,7 +252,7 @@
   #brushCanvas { position: absolute; inset: 0; width: 100%; height: 100%; }
   .brush-overlay { position: absolute; inset: 0; }
   .brush-mask { position: absolute; top: 0; bottom: 0;
-    background: rgba(11, 14, 19, 0.72); pointer-events: none; }
+    background: var(--brush-mask); pointer-events: none; }
   .brush-window { position: absolute; top: 0; bottom: 0;
     border-left: 2px solid var(--accent);
     border-right: 2px solid var(--accent);
@@ -214,7 +267,7 @@
   }
   .brush-handle::before {
     content: ""; display: block; width: 2px; height: 18px;
-    background: rgba(11, 14, 19, 0.6); border-radius: 1px;
+    background: var(--on-accent); border-radius: 1px;
   }
   .brush-handle-l { left: -6px; border-radius: 3px 0 0 3px; }
   .brush-handle-r { right: -6px; border-radius: 0 3px 3px 0; }
@@ -296,7 +349,7 @@
   }
   .skeleton {
     color: transparent !important;
-    background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 100%);
+    background: linear-gradient(90deg, transparent 0%, var(--border) 50%, transparent 100%);
     background-size: 200px 100%;
     background-repeat: no-repeat;
     border-radius: 4px;
@@ -348,18 +401,23 @@
       width: min(260px, calc(100vw - 32px));
       font-size: 11.5px; padding: 8px 10px;
     }
-    /* 2-col stats: right column pins its tip right, left column pins left. */
-    .stats .stat:nth-child(2n) .help .tip { left: auto; right: 0; transform: none; }
-    .stats .stat:nth-child(2n) .help .tip::after { left: auto; right: 10px; transform: none; }
-    .stats .stat:nth-child(2n+1) .help .tip { left: 0; transform: none; }
-    .stats .stat:nth-child(2n+1) .help .tip::after { left: 10px; transform: none; }
+    /* Anchor mobile tips to the card or header so they stay inside the viewport. */
+    .stat, .page-head { position: relative; }
+    .help, .help.help-lg { position: static; transform: none; }
+    .help.help-lg .tip { left: 0; top: 100%; }
+    .stats .help .tip { left: 0; right: auto; bottom: 100%; transform: none; }
+    .stats .stat:nth-child(even) .tip { left: auto; right: 0; }
+    .stats .help .tip::after, .help.help-lg .tip::after { display: none; }
 
     .legend { font-size: 11px; gap: 10px; }
     .brush-canvas-wrap { height: 40px; }
     thead th, tbody td { padding: 7px 10px; font-size: 12px; }
     thead th { font-size: 11px; }
 
+    .page-head { align-items: center; gap: 6px 10px; }
     .page-head h1 { font-size: 18px; }
+    .theme-control { margin-left: auto; }
+    .page-head .status { order: 1; width: 100%; margin-left: 0; }
   }
   @media (max-width: 420px) {
     .range-tabs button { padding: 5px 8px; min-width: 32px; }
@@ -380,6 +438,13 @@
       </span></span>
     </h1>
     <div class="status" id="status"><span class="dot"></span>初始化…</div>
+    <label class="theme-control">外观
+      <select id="theme">
+        <option value="system">跟随系统</option>
+        <option value="light">浅色模式</option>
+        <option value="dark">深色模式</option>
+      </select>
+    </label>
   </div>
 
   <div class="stats">
@@ -417,11 +482,11 @@
     <div class="card-head">
       <h2>Ahr999 历史曲线</h2>
       <div class="legend">
-        <span><span class="swatch" style="background:#cbd5e1"></span>200 日定投成本</span>
+        <span><span class="swatch" style="background:var(--cost)"></span>200 日定投成本</span>
         <span><span class="swatch" style="background:var(--price)"></span>BTC 价格</span>
         <span><span class="swatch" style="background:var(--accent)"></span>ahr999 囤币指标</span>
-        <span><span class="swatch" style="background:#ec4899"></span>抄底线 0.45</span>
-        <span><span class="swatch" style="background:#22c55e"></span>定投线 1.2</span>
+        <span><span class="swatch" style="background:var(--buy-line)"></span>抄底线 0.45</span>
+        <span><span class="swatch" style="background:var(--green)"></span>定投线 1.2</span>
       </div>
     </div>
     <div class="chart-wrap loading" id="chartWrap"><canvas id="chart"></canvas></div>
@@ -628,6 +693,29 @@ function computeSeries(bars) {
 
 let fullSeries = [];
 let chart;
+const themeSelect = el("theme");
+const themeStyles = getComputedStyle(document.documentElement);
+const themeColor = name => themeStyles.getPropertyValue("--" + name).trim();
+
+function refreshTheme() {
+  applyTheme();
+  document.querySelector('meta[name="theme-color"]').content = themeColor("bg");
+  themeSelect.value = themePreference;
+  if (chart) {
+    renderChart();
+    drawBrushCanvas();
+  }
+}
+
+themeSelect.addEventListener("change", () => {
+  themePreference = themeSelect.value;
+  try { localStorage.setItem(themeKey, themePreference); } catch { /* Session only. */ }
+  refreshTheme();
+});
+systemTheme.addEventListener("change", () => {
+  if (themePreference === "system") refreshTheme();
+});
+refreshTheme();
 let dataStamp = null;  // ISO string from data/btc_daily.json "updated" field
 // Brush-driven range (indices into fullSeries).
 let brushI0 = 0;
@@ -695,6 +783,7 @@ function renderChart() {
   const prcHi = niceCeil(Math.max(...prcVals));
 
   const ctx = el("chart").getContext("2d");
+  const visible = chart?.data.datasets.map((_, index) => chart.isDatasetVisible(index));
   if (chart) chart.destroy();
   chart = new Chart(ctx, {
     type: "line",
@@ -702,48 +791,48 @@ function renderChart() {
       labels,
       datasets: [
         {
-          label: "ahr999 囤币指标", data: ahrD, yAxisID: "y",
-          borderColor: "#60a5fa", backgroundColor: "rgba(96,165,250,0.18)",
+          label: "ahr999 囤币指标", data: ahrD, hidden: visible?.[0] === false, yAxisID: "y",
+          borderColor: themeColor("accent"), backgroundColor: themeColor("chart-fill"),
           borderWidth: 1.4, pointRadius: 0, tension: 0, fill: "origin",
           pointStyle: "circle",
-          pointBackgroundColor: "#60a5fa",
-          pointBorderColor: "#60a5fa",
+          pointBackgroundColor: themeColor("accent"),
+          pointBorderColor: themeColor("accent"),
           pointHoverRadius: 5,
-          pointHoverBackgroundColor: "#60a5fa",
-          pointHoverBorderColor: "#0b0e13",
+          pointHoverBackgroundColor: themeColor("accent"),
+          pointHoverBorderColor: themeColor("bg"),
           pointHoverBorderWidth: 2,
           hoverRadius: 5,
-          hoverBackgroundColor: "#60a5fa",
+          hoverBackgroundColor: themeColor("accent"),
           order: 3,
         },
         {
-          label: "200 日定投成本", data: gmD, yAxisID: "y2",
-          borderColor: "#cbd5e1", backgroundColor: "transparent",
+          label: "200 日定投成本", data: gmD, hidden: visible?.[1] === false, yAxisID: "y2",
+          borderColor: themeColor("cost"), backgroundColor: "transparent",
           borderWidth: 1.1, pointRadius: 0, tension: 0,
           pointStyle: "circle",
-          pointBackgroundColor: "#cbd5e1",
-          pointBorderColor: "#cbd5e1",
+          pointBackgroundColor: themeColor("cost"),
+          pointBorderColor: themeColor("cost"),
           pointHoverRadius: 5,
-          pointHoverBackgroundColor: "#cbd5e1",
-          pointHoverBorderColor: "#0b0e13",
+          pointHoverBackgroundColor: themeColor("cost"),
+          pointHoverBorderColor: themeColor("bg"),
           pointHoverBorderWidth: 2,
           hoverRadius: 5,
-          hoverBackgroundColor: "#cbd5e1",
+          hoverBackgroundColor: themeColor("cost"),
           order: 1,
         },
         {
-          label: "BTC 价格", data: prcD, yAxisID: "y2",
-          borderColor: "#f59e0b", backgroundColor: "transparent",
+          label: "BTC 价格", data: prcD, hidden: visible?.[2] === false, yAxisID: "y2",
+          borderColor: themeColor("price"), backgroundColor: "transparent",
           borderWidth: 1.1, pointRadius: 0, tension: 0,
           pointStyle: "circle",
-          pointBackgroundColor: "#f59e0b",
-          pointBorderColor: "#f59e0b",
+          pointBackgroundColor: themeColor("price"),
+          pointBorderColor: themeColor("price"),
           pointHoverRadius: 5,
-          pointHoverBackgroundColor: "#f59e0b",
-          pointHoverBorderColor: "#0b0e13",
+          pointHoverBackgroundColor: themeColor("price"),
+          pointHoverBorderColor: themeColor("bg"),
           pointHoverBorderWidth: 2,
           hoverRadius: 5,
-          hoverBackgroundColor: "#f59e0b",
+          hoverBackgroundColor: themeColor("price"),
           order: 2,
         },
       ],
@@ -752,10 +841,10 @@ function renderChart() {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
       plugins: {
-        legend: { labels: { color: "#b8c1cc", usePointStyle: true, pointStyle: "line" } },
+        legend: { labels: { color: themeColor("ink-2"), usePointStyle: true, pointStyle: "line" } },
         tooltip: {
-          backgroundColor: "#0b0e13", borderColor: "#1f2937", borderWidth: 1,
-          titleColor: "#e6edf3", bodyColor: "#b8c1cc", padding: 10,
+          backgroundColor: themeColor("bg"), borderColor: themeColor("border"), borderWidth: 1,
+          titleColor: themeColor("ink"), bodyColor: themeColor("ink-2"), padding: 10,
           callbacks: {
             title: (arr) => fmtDate(arr[0].parsed.x),
             label(c) {
@@ -776,8 +865,8 @@ function renderChart() {
           return {
             type: "time",
             time: { unit },
-            ticks: { color: "#6e7681", maxRotation: 0, autoSkip: true, maxTicksLimit: 10 },
-            grid: { color: "rgba(255,255,255,0.04)" },
+            ticks: { color: themeColor("muted"), maxRotation: 0, autoSkip: true, maxTicksLimit: 10 },
+            grid: { color: themeColor("grid") },
           };
         })(),
         y: {
@@ -785,17 +874,17 @@ function renderChart() {
           type: "logarithmic", position: "left",
           min: ahrLo, max: ahrHi,
           ticks: {
-            color: "#9ca3af", autoSkip: false,
+            color: themeColor("muted"), autoSkip: false,
             callback: (v) => logTicks(ahrLo, ahrHi).some(t => Math.abs(t - v) / v < 1e-6) ? fmtAhr(v) : "",
           },
-          grid: { color: "rgba(255,255,255,0.04)" },
+          grid: { color: themeColor("grid") },
         },
         y2: {
           // RIGHT: BTC price (dynamic ticks)
           type: "logarithmic", position: "right",
           min: prcLo, max: prcHi,
           ticks: {
-            color: "#9ca3af", autoSkip: false,
+            color: themeColor("muted"), autoSkip: false,
             callback: (v) => logTicks(prcLo, prcHi).some(t => Math.abs(t - v) / v < 1e-6) ? fmtBtcCN(v) : "",
           },
           grid: { display: false },
@@ -809,8 +898,8 @@ function renderChart() {
         if (!chartArea) return;
         const y = scales.y;
         const lines = [
-          { v: 0.45, col: "#ec4899" },
-          { v: 1.20, col: "#22c55e" },
+          { v: 0.45, col: themeColor("buy-line") },
+          { v: 1.20, col: themeColor("green") },
         ];
         ctx.save();
         ctx.lineWidth = 1.2;
@@ -832,7 +921,7 @@ function renderChart() {
         const { ctx, chartArea } = c;
         const x = active[0].element.x;
         ctx.save();
-        ctx.strokeStyle = "rgba(255,255,255,0.25)";
+        ctx.strokeStyle = themeColor("muted");
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
         ctx.beginPath();
@@ -847,7 +936,7 @@ function renderChart() {
           const color = ds.borderColor;
           const px = a.element.x, py = a.element.y;
           ctx.fillStyle = color;
-          ctx.strokeStyle = "#0b0e13";
+          ctx.strokeStyle = themeColor("bg");
           ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.arc(px, py, 5, 0, Math.PI * 2);
@@ -901,7 +990,7 @@ function drawBrushCanvas() {
   }
   ctx.lineTo(W, H);
   ctx.closePath();
-  ctx.fillStyle = "rgba(96,165,250,0.18)";
+  ctx.fillStyle = themeColor("chart-fill");
   ctx.fill();
   ctx.beginPath();
   for (let i = 0; i < fullSeries.length; i++) {
@@ -909,7 +998,7 @@ function drawBrushCanvas() {
     const y = H - ((Math.log(fullSeries[i].price) - logLo) / (logHi - logLo)) * (H - 4) - 2;
     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   }
-  ctx.strokeStyle = "rgba(96,165,250,0.55)";
+  ctx.strokeStyle = themeColor("accent");
   ctx.lineWidth = 1;
   ctx.stroke();
 }
@@ -995,6 +1084,7 @@ function attachBrushDrag() {
     renderChart();
   }
   function onUp() {
+    syncHashFromBrush(null);
     state = null;
     window.removeEventListener("mousemove", onMove);
     window.removeEventListener("mouseup",   onUp);
@@ -1222,19 +1312,9 @@ el("ranges").addEventListener("click", (e) => {
   syncHashFromBrush(b.dataset.r);
 });
 
-// Keep URL in sync when user drags the brush manually.
-(function () {
-  const origUpdate = updateBrushUI;
-  updateBrushUI = function () { origUpdate(); };
-  // We only want to push to hash after the user stops dragging, not during drag.
-  // The drag handlers call updateBrushUI on every mousemove; instead hook on mouseup.
-  document.addEventListener("mouseup",   () => { if (fullSeries.length) syncHashFromBrush(null); });
-  document.addEventListener("touchend",  () => { if (fullSeries.length) syncHashFromBrush(null); });
-})();
-
 // Keyboard shortcuts: 1-6 select preset; ←/→ pan brush by 10% of its width.
 document.addEventListener("keydown", (e) => {
-  if (e.target.closest("input, textarea, [contenteditable]")) return;
+  if (e.target.closest("input, textarea, select, [contenteditable]")) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const map = { "1": "1M", "2": "3M", "3": "6M", "4": "1Y", "5": "3Y", "6": "ALL" };
   if (map[e.key] && fullSeries.length) {
