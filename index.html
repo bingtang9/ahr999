@@ -277,6 +277,73 @@ applyTheme();
   .swatch { display:inline-block; width:10px; height:10px; border-radius: 2px;
     vertical-align:middle; margin-right:6px; }
 
+  /* Selected dates apply to both the distribution and the daily rows. */
+  #history { scroll-margin-top: 16px; }
+  .history-overview { display: grid; grid-template-columns: minmax(270px, 1fr) minmax(0, 2fr);
+    gap: 14px; margin-bottom: 14px; }
+  #history-title { margin: 0 0 12px; font-size: 17px; }
+  .history-overview h3 { margin: 0; font-size: 14px; font-weight: 600; }
+  .history-controls h3 { grid-column: 1 / -1; }
+  .history-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px; align-items: end; align-content: space-between; }
+  .history-controls input { width: 100%; min-width: 0; }
+  .history-controls label { display: grid; gap: 3px; color: var(--muted); font-size: 12px; }
+  #history button, .history-controls input {
+    font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 10px; min-height: 34px;
+  }
+  #history button { cursor: pointer; font-size: 12px; }
+  #history button:disabled { opacity: .45; cursor: default; }
+  #history button:not(:disabled):hover { border-color: var(--accent); }
+  #history button[type="submit"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .history-controls, .history-summary { background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 18px; min-width: 0; }
+  .history-period { color: var(--muted); font-size: 12px; margin: 3px 0 12px; }
+  .history-mix { display: grid; grid-template-columns: auto minmax(0,1fr); gap: clamp(16px, 3vw, 36px); align-items: center; }
+  .history-ring { position: relative; display: grid; place-content: center; justify-items: center;
+    width: 100px; aspect-ratio: 1; border-radius: 50%; background: var(--border); }
+  .history-ring.has-data { background: conic-gradient(var(--green) 0% var(--buy-end),
+    var(--yellow) var(--buy-end) var(--dca-end), var(--red) var(--dca-end) 100%); }
+  .history-ring::before { content: ""; position: absolute; inset: 15%; border-radius: 50%; background: var(--bg-2); }
+  .history-ring > * { position: relative; }
+  .history-ring b { font-size: 23px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .history-ring small { color: var(--muted); }
+  .history-legend { min-width: 0; }
+  .history-legend > div { display: grid; grid-template-columns: minmax(78px,1fr) auto 58px; align-items: center;
+    gap: 12px; padding: 8px 0; font-variant-numeric: tabular-nums; }
+  .history-legend > div + div { border-top: 1px solid var(--border); }
+  .history-legend span:nth-child(2) { text-align: right; color: var(--ink-2); }
+  .history-legend strong { text-align: right; }
+  .history-pages { display: flex; justify-content: flex-end; align-items: center; gap: 10px;
+    margin-top: 10px; color: var(--muted); font-size: 12px; }
+  .history-pages[hidden] { display: none; }
+  @media (min-width: 1000px) {
+    .history-summary { display: grid; grid-template-columns: auto minmax(0, 1fr);
+      column-gap: 24px; align-items: start; }
+    .history-mix { display: contents; }
+    .history-ring { grid-column: 1; grid-row: 1 / 4; align-self: center; }
+    .history-summary h3, .history-period, .history-legend { grid-column: 2; }
+    .history-legend { display: grid; grid-template-columns: repeat(3, 1fr); }
+    .history-legend > div { grid-template-columns: 1fr; gap: 1px; padding: 0 12px; }
+    .history-legend > div:first-child { padding-left: 0; }
+    .history-legend > div + div { border-top: 0; border-left: 1px solid var(--border); }
+    .history-legend strong { grid-row: 2; text-align: left; font-size: 21px; line-height: 1.3; }
+    .history-legend span:nth-child(2) { text-align: left; font-size: 12px; }
+  }
+  @media (max-width: 760px) {
+    .history-overview { grid-template-columns: 1fr; gap: 12px; }
+  }
+  @media (max-width: 560px) {
+    .history-controls, .history-summary { padding: 12px; }
+    .history-mix { gap: 12px; }
+    .history-ring { width: 76px; }
+    .history-ring b { font-size: 19px; }
+    .history-ring small { font-size: 10px; }
+    .history-legend > div { grid-template-columns: 1fr auto auto; gap: 6px; font-size: 12px; }
+    .history-legend .swatch { width: 7px; height: 7px; margin-right: 4px; }
+    .history-legend > div { padding: 6px 0; }
+  }
+
   /* Table */
   .tbl-wrap { max-height: 440px; overflow: auto; border-radius: 6px; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -534,10 +601,28 @@ applyTheme();
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-head">
-      <h2>历史数据</h2>
-      <div class="status" style="margin-left:auto; font-size:12px;">最近 60 天</div>
+  <section class="card" id="history" aria-labelledby="history-title">
+    <h2 id="history-title">历史数据</h2>
+    <div class="history-overview">
+      <form class="history-controls" id="history-form" aria-labelledby="history-filter-title">
+        <h3 id="history-filter-title">数据筛选</h3>
+        <label>开始日期<input id="history-from" type="date" required></label>
+        <label>结束日期<input id="history-to" type="date" required></label>
+        <button type="submit">查看区间</button>
+        <button type="button" id="history-recent">最近 60 天</button>
+      </form>
+      <div class="history-summary">
+        <h3>区间天数占比</h3>
+        <p class="history-period" id="history-period" aria-live="polite">加载中…</p>
+        <div class="history-mix">
+          <div class="history-ring" id="history-ring" aria-hidden="true"><b id="history-total">—</b><small>有效天数</small></div>
+          <div class="history-legend" id="history-legend">
+            <div><span><i class="swatch" style="background:var(--green)"></i>抄底</span><span>— 天</span><strong>—</strong></div>
+            <div><span><i class="swatch" style="background:var(--yellow)"></i>定投</span><span>— 天</span><strong>—</strong></div>
+            <div><span><i class="swatch" style="background:var(--red)"></i>停止定投</span><span>— 天</span><strong>—</strong></div>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="tbl-wrap">
       <table id="tbl">
@@ -554,7 +639,12 @@ applyTheme();
         <tbody></tbody>
       </table>
     </div>
-  </div>
+    <div class="history-pages" id="history-pages" hidden>
+      <button type="button" id="history-prev">上一页</button>
+      <span id="history-page"></span>
+      <button type="button" id="history-next">下一页</button>
+    </div>
+  </section>
 
   <footer>
     <div class="notice">
@@ -949,8 +1039,7 @@ function renderChart() {
   });
 }
 
-function renderTable(series) {
-  const rows = series.slice(-60).reverse();
+function renderTable(rows) {
   const tbody = el("tbl").querySelector("tbody");
   tbody.innerHTML = rows.map(r => {
     const z = zoneOf(r.ahr);
@@ -964,6 +1053,79 @@ function renderTable(series) {
     </tr>`;
   }).join("");
 }
+
+const DAY_MS = 86_400_000;
+const HISTORY_PAGE_SIZE = 60;
+const historyFrom = el("history-from");
+const historyTo = el("history-to");
+let historyRange = null; // null follows the latest 60 calendar days
+let historyRows = [];
+let historyPage = 0;
+
+function renderHistoryPage() {
+  const pages = Math.ceil(historyRows.length / HISTORY_PAGE_SIZE);
+  const offset = historyPage * HISTORY_PAGE_SIZE;
+  renderTable(historyRows.slice(offset, offset + HISTORY_PAGE_SIZE));
+  el("history-pages").hidden = pages <= 1;
+  el("history-page").textContent = `${historyPage + 1} / ${pages}`;
+  el("history-prev").disabled = historyPage === 0;
+  el("history-next").disabled = historyPage + 1 >= pages;
+}
+
+function renderHistory(syncInputs = false) {
+  if (!fullSeries.length) return;
+  const first = fullSeries[0].t;
+  const latest = fullSeries[fullSeries.length - 1].t;
+  const [from, to] = historyRange || [Math.max(first, latest - 59 * DAY_MS), latest];
+  const firstDay = fmtDate(first), lastDay = fmtDate(latest);
+  historyFrom.min = historyTo.min = firstDay;
+  historyFrom.max = historyTo.max = lastDay;
+  if (syncInputs) {
+    historyFrom.value = fmtDate(from);
+    historyTo.value = fmtDate(to);
+    historyTo.setCustomValidity("");
+  }
+  historyRows = fullSeries.filter(row => row.t >= from && row.t <= to && Number.isFinite(row.ahr)).reverse();
+  const total = historyRows.length;
+  const counts = { "抄底": 0, "定投": 0, "停止定投": 0 };
+  for (const row of historyRows) counts[zoneOf(row.ahr)]++;
+  Object.values(counts).forEach((days, index) => {
+    const row = el("history-legend").children[index];
+    row.children[1].textContent = days + " 天";
+    row.children[2].textContent = total ? (days * 100 / total).toFixed(1) + "%" : "—";
+  });
+  const ring = el("history-ring");
+  ring.classList.toggle("has-data", total > 0);
+  if (total) {
+    ring.style.setProperty("--buy-end", (100 * counts["抄底"] / total) + "%");
+    ring.style.setProperty("--dca-end", (100 * (counts["抄底"] + counts["定投"]) / total) + "%");
+  }
+  el("history-total").textContent = total.toLocaleString();
+  const live = tickerOK && latest >= from && latest <= to;
+  el("history-period").textContent = `${fmtDate(from)} 至 ${fmtDate(to)} · ${total} 个有效日（UTC）` +
+    (live ? " · 含当日实时值" : "");
+  renderHistoryPage();
+}
+
+function selectHistoryRange(range) {
+  historyRange = range;
+  historyPage = 0;
+  renderHistory(true);
+}
+
+el("history-form").addEventListener("input", () => historyTo.setCustomValidity(""));
+el("history-form").addEventListener("submit", e => {
+  e.preventDefault();
+  if (historyFrom.valueAsNumber > historyTo.valueAsNumber) {
+    historyTo.setCustomValidity("结束日期应在开始日期当天或之后");
+    historyTo.reportValidity();
+    return;
+  }
+  selectHistoryRange([historyFrom.valueAsNumber, historyTo.valueAsNumber]);
+});
+el("history-recent").addEventListener("click", () => selectHistoryRange(null));
+el("history-prev").addEventListener("click", () => { historyPage--; renderHistoryPage(); });
+el("history-next").addEventListener("click", () => { historyPage++; renderHistoryPage(); });
 
 // ---------- Brush slider (bottom date-range selector) ----------
 function drawBrushCanvas() {
@@ -1159,7 +1321,7 @@ async function bootstrap() {
     // Default: entire history.
     setBrushByDays(RANGE_DAYS["ALL"]);
     // Apply URL hash range if present, otherwise default to ALL (already set above).
-    if (!applyHashToBrush()) syncHashFromBrush("ALL");
+    if (!applyHashToBrush() && location.hash !== "#history") syncHashFromBrush("ALL");
     drawBrushCanvas();
     attachBrushDrag();
     // Pulse brush handles briefly to advertise drag-ability (removed after interaction).
@@ -1169,7 +1331,7 @@ async function bootstrap() {
     ["mousedown", "touchstart", "keydown"].forEach(ev =>
       document.addEventListener(ev, removeHint, { once: true, passive: true }));
     setTimeout(removeHint, 4000);
-    renderTable(fullSeries);
+    renderHistory(true);
     updateCards(fullSeries[fullSeries.length - 1]);
     updateDistribution();
     updateFormulaTip();
@@ -1202,6 +1364,8 @@ async function refreshTicker() {
     const now = new Date();
     const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
     const appendedToday = last.t < todayUTC;
+    const followingLatest = !historyRange && historyTo.value === fmtDate(last.t) &&
+      historyFrom.value === fmtDate(Math.max(fullSeries[0].t, last.t - 59 * DAY_MS));
     if (appendedToday) bars.push({ t: todayUTC, close: price });
     else last.close = price;
 
@@ -1230,8 +1394,9 @@ async function refreshTicker() {
       updateBrushUI();
       updateDistribution();
     }
-    // Intra-day: chart is intentionally NOT touched. Only cards + latest row.
-    patchLatestTableRow(latest);
+    if (appendedToday || !historyRange || (latest.t >= historyRange[0] && latest.t <= historyRange[1])) {
+      renderHistory(appendedToday && followingLatest);
+    }
     updateCards(latest);
     setStatus("已更新 · " + new Date().toLocaleTimeString("zh-CN", { hour12: false }), "ok");
   } catch (e) {
@@ -1242,23 +1407,6 @@ async function refreshTicker() {
     setStatus(blocked ? "Binance 暂不可达（使用日线快照）" : ("刷新失败: " + e.message), "err");
     // Still refresh card labels so the hint shows the fallback message.
     if (fullSeries.length) updateCards(fullSeries[fullSeries.length - 1]);
-  }
-}
-
-// Update just the first (today's) row of the table, instead of rewriting tbody.
-function patchLatestTableRow(r) {
-  const tbody = el("tbl").querySelector("tbody");
-  const tr = tbody.querySelector("tr:first-child");
-  if (!tr) return renderTable(fullSeries);
-  const z = zoneOf(r.ahr);
-  const cells = tr.children;
-  if (cells.length >= 6) {
-    cells[0].textContent = fmtDate(r.t);
-    cells[1].textContent = r.ahr.toFixed(4);
-    cells[2].textContent = fmt$2(r.price);
-    cells[3].textContent = fmt$(r.gm);
-    cells[4].textContent = fmt$(r.fit);
-    cells[5].innerHTML = `<span class="badge ${z}">${z}</span>`;
   }
 }
 
